@@ -1,0 +1,835 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { createServerFn } from "@tanstack/react-start";
+import { getSql } from "~/db";
+import { useState } from "react";
+
+// ── Server functions ──
+
+const fetchAgents = createServerFn().handler(async () => {
+  const sql = getSql();
+  const rows = await sql`SELECT * FROM ai_agents ORDER BY created_at ASC`;
+  return rows.map((r: Record<string, unknown>) => ({
+    ...r,
+    created_at: String(r.created_at),
+    last_run: r.last_run ? String(r.last_run) : null,
+  }));
+});
+
+const fetchTasksSummary = createServerFn().handler(async () => {
+  const sql = getSql();
+  const [pending, completed, inProgress] = await Promise.all([
+    sql`SELECT count(*) as cnt FROM agent_tasks WHERE status = 'pending'`,
+    sql`SELECT count(*) as cnt FROM agent_tasks WHERE status = 'completed'`,
+    sql`SELECT count(*) as cnt FROM agent_tasks WHERE status = 'in_progress'`,
+  ]);
+  return {
+    pending: Number((pending[0] as { cnt: number }).cnt),
+    completed: Number((completed[0] as { cnt: number }).cnt),
+    in_progress: Number((inProgress[0] as { cnt: number }).cnt),
+  };
+});
+
+const fetchRecentNiches = createServerFn().handler(async () => {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT np.*, 
+      (SELECT count(*) FROM agent_tasks WHERE niche_id = np.id) as task_count
+    FROM niche_profiles np
+    ORDER BY np.created_at DESC
+    LIMIT 5
+  `;
+  return rows.map((r: Record<string, unknown>) => ({
+    id: r.id as string,
+    niche_name: r.niche_name as string,
+    slug: r.slug as string,
+    task_count: Number(r.task_count),
+    created_at: String(r.created_at),
+  }));
+});
+
+const fetchPendingTasks = createServerFn().handler(async () => {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT 
+      at.id, at.title, at.description, at.status, at.priority, at.result,
+      at.created_at, at.started_at, at.completed_at,
+      a.name as agent_name, a.role as agent_role
+    FROM agent_tasks at
+    LEFT JOIN ai_agents a ON at.agent_id = a.id
+    WHERE at.status = 'pending' OR at.status = 'in_progress'
+    ORDER BY at.created_at DESC
+    LIMIT 20
+  `;
+  return rows.map((r: Record<string, unknown>) => ({
+    id: r.id as string,
+    title: r.title as string,
+    description: r.description as string | null,
+    status: r.status as string,
+    priority: r.priority as number,
+    agent_name: (r.agent_name as string) ?? "Unknown Agent",
+    agent_role: (r.agent_role as string) ?? "unknown",
+    created_at: String(r.created_at),
+  }));
+});
+
+const fetchCompletedTasks = createServerFn().handler(async () => {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT 
+      at.id, at.title, at.description, at.status, at.priority, at.result,
+      at.created_at, at.started_at, at.completed_at,
+      a.name as agent_name, a.role as agent_role
+    FROM agent_tasks at
+    LEFT JOIN ai_agents a ON at.agent_id = a.id
+    WHERE at.status = 'completed'
+    ORDER BY at.completed_at DESC NULLS LAST
+    LIMIT 10
+  `;
+  return rows.map((r: Record<string, unknown>) => ({
+    id: r.id as string,
+    title: r.title as string,
+    description: r.description as string | null,
+    status: r.status as string,
+    priority: r.priority as number,
+    result: r.result as unknown,
+    agent_name: (r.agent_name as string) ?? "Unknown Agent",
+    agent_role: (r.agent_role as string) ?? "unknown",
+    created_at: String(r.created_at),
+    started_at: r.started_at ? String(r.started_at) : null,
+    completed_at: r.completed_at ? String(r.completed_at) : null,
+  }));
+});
+
+const fetchNicheCount = createServerFn().handler(async () => {
+  const sql = getSql();
+  const rows = await sql`SELECT count(*) as cnt FROM niche_profiles`;
+  return Number((rows[0] as { cnt: number }).cnt);
+});
+
+const fetchAllNicheSlugs = createServerFn().handler(async () => {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT id, niche_name, slug FROM niche_profiles ORDER BY created_at DESC
+  `;
+  return rows.map((r: Record<string, unknown>) => ({
+    id: r.id as string,
+    niche_name: r.niche_name as string,
+    slug: r.slug as string,
+  }));
+});
+
+// ── Executor server functions ──
+
+const runTaskAction = createServerFn().handler(async (taskId: string) => {
+  const { executeTask } = await import("~/services/agent-executor");
+  return executeTask(taskId);
+});
+
+const runPipelineAction = createServerFn().handler(async (nicheSlug: string) => {
+  const { runContentPipeline } = await import("~/services/content-pipeline");
+  return runContentPipeline(nicheSlug);
+});
+
+// ── Task management ──
+
+const completeTask = createServerFn().handler(async (taskId: string) => {
+  const sql = getSql();
+  await sql`
+    UPDATE agent_tasks 
+    SET status = 'completed', completed_at = NOW()
+    WHERE id = ${taskId}
+  `;
+  return { success: true };
+});
+
+const updateTaskStatus = createServerFn().handler(async ({ taskId, status }: { taskId: string; status: string }) => {
+  const sql = getSql();
+  if (status === "in_progress") {
+    await sql`
+      UPDATE agent_tasks 
+      SET status = 'in_progress', started_at = COALESCE(started_at, NOW())
+      WHERE id = ${taskId}
+    `;
+  } else if (status === "completed") {
+    await sql`
+      UPDATE agent_tasks 
+      SET status = 'completed', completed_at = NOW()
+      WHERE id = ${taskId}
+    `;
+  } else {
+    await sql`
+      UPDATE agent_tasks 
+      SET status = ${status}
+      WHERE id = ${taskId}
+    `;
+  }
+  return { success: true };
+});
+
+const createTask = createServerFn().handler(async ({ agentId, title, description }: { agentId: string; title: string; description: string }) => {
+  const sql = getSql();
+  await sql`
+    INSERT INTO agent_tasks (agent_id, title, description, status)
+    VALUES (${agentId}, ${title}, ${description}, 'pending')
+  `;
+  return { success: true };
+});
+
+// ── Route ──
+
+export const Route = createFileRoute("/dashboard")({
+  loader: async () => {
+    const [agents, tasks, niches, pendingTasks, completedTasks, nicheCount, allNiches] = await Promise.all([
+      fetchAgents(),
+      fetchTasksSummary(),
+      fetchRecentNiches(),
+      fetchPendingTasks(),
+      fetchCompletedTasks(),
+      fetchNicheCount(),
+      fetchAllNicheSlugs(),
+    ]);
+
+    return { agents, tasks, niches, pendingTasks, completedTasks, nicheCount, allNiches };
+  },
+  component: Dashboard,
+});
+
+// ── Components ──
+
+function StatusBadge({ status }: { status: string }) {
+  const colors: Record<string, string> = {
+    idle: "bg-gray-700 text-gray-300",
+    active: "bg-green-900/60 text-green-400 border-green-500/30",
+    running: "bg-blue-900/60 text-blue-400 border-blue-500/30",
+    error: "bg-red-900/60 text-red-400 border-red-500/30",
+    paused: "bg-yellow-900/60 text-yellow-400 border-yellow-500/30",
+  };
+  const c = colors[status] ?? colors.idle;
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${c}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${status === "active" || status === "running" ? "bg-current animate-pulse" : "bg-current"}`} />
+      {status}
+    </span>
+  );
+}
+
+function TaskStatusBadge({ status }: { status: string }) {
+  const colors: Record<string, string> = {
+    pending: "bg-yellow-900/60 text-yellow-400 border-yellow-500/30",
+    in_progress: "bg-blue-900/60 text-blue-400 border-blue-500/30",
+    completed: "bg-green-900/60 text-green-400 border-green-500/30",
+    failed: "bg-red-900/60 text-red-400 border-red-500/30",
+  };
+  const c = colors[status] ?? colors.pending;
+  const label = status === "in_progress" ? "In Progress" : status.charAt(0).toUpperCase() + status.slice(1);
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${c}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${status === "in_progress" ? "bg-current animate-pulse" : "bg-current"}`} />
+      {label}
+    </span>
+  );
+}
+
+function Spinner() {
+  return (
+    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+    </svg>
+  );
+}
+
+function ResultDisplay({ result }: { result: unknown }) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (!result) return null;
+
+  let displayText = "";
+  let isArticle = false;
+
+  if (typeof result === "string") {
+    try {
+      const parsed = JSON.parse(result);
+      displayText = JSON.stringify(parsed, null, 2);
+      if (parsed?.article?.content) {
+        isArticle = true;
+        displayText = parsed.article.content;
+      }
+    } catch {
+      displayText = result;
+    }
+  } else if (typeof result === "object" && result !== null) {
+    const obj = result as Record<string, unknown>;
+    if (obj.article && typeof obj.article === "object") {
+      const article = obj.article as Record<string, unknown>;
+      if (typeof article.content === "string") {
+        isArticle = true;
+        displayText = article.content;
+      }
+    }
+    if (!displayText) {
+      displayText = JSON.stringify(result, null, 2);
+    }
+  }
+
+  const preview = isArticle
+    ? displayText.substring(0, 300) + "..."
+    : displayText.substring(0, 200);
+
+  return (
+    <div className="mt-3 border-t border-gray-700/50 pt-3">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1"
+      >
+        {expanded ? "▼ Hide" : "▶ Show"} Result
+      </button>
+      {expanded && (
+        <div className="mt-2 rounded-lg bg-gray-900/80 border border-gray-700/50 p-3 max-h-96 overflow-auto">
+          {isArticle ? (
+            <div className="prose prose-invert prose-sm max-w-none text-gray-300 text-xs leading-relaxed whitespace-pre-wrap">
+              {displayText}
+            </div>
+          ) : (
+            <pre className="text-xs text-gray-300 whitespace-pre-wrap font-mono">{displayText}</pre>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CreateTaskModal({ agents, onClose, onCreated }: { agents: Array<{ id: string; name: string }>; onClose: () => void; onCreated: () => void }) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [agentId, setAgentId] = useState(agents[0]?.id ?? "");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim() || !agentId || submitting) return;
+    setSubmitting(true);
+    try {
+      await createTask({ agentId, title: title.trim(), description: description.trim() });
+      onCreated();
+      onClose();
+    } catch (err) {
+      console.error("Failed to create task:", err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="glass-card mx-4 w-full max-w-md rounded-2xl p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-white">Create Task</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-white text-xl">&times;</button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">Title</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Task title..."
+              className="w-full rounded-lg border border-gray-700 bg-gray-900/60 px-4 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:border-indigo-500/50 focus:outline-none"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Task description..."
+              rows={3}
+              className="w-full rounded-lg border border-gray-700 bg-gray-900/60 px-4 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:border-indigo-500/50 focus:outline-none resize-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">Assign to Agent</label>
+            <select
+              value={agentId}
+              onChange={(e) => setAgentId(e.target.value)}
+              className="w-full rounded-lg border border-gray-700 bg-gray-900/60 px-4 py-2.5 text-sm text-gray-100 focus:border-indigo-500/50 focus:outline-none"
+            >
+              {agents.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+          </div>
+          <button
+            type="submit"
+            disabled={submitting || !title.trim()}
+            className="w-full rounded-xl bg-gradient-to-r from-indigo-500 to-cyan-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition-all duration-300 hover:shadow-indigo-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {submitting ? "Creating..." : "Create Task"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function PipelineModal({ niches, onClose, onStarted }: { niches: Array<{ id: string; niche_name: string; slug: string }>; onClose: () => void; onStarted: (slug: string) => void }) {
+  const [selected, setSelected] = useState(niches[0]?.slug ?? "");
+
+  const handleStart = () => {
+    if (!selected) return;
+    onStarted(selected);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="glass-card mx-4 w-full max-w-md rounded-2xl p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-white">Run Content Pipeline</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-white text-xl">&times;</button>
+        </div>
+        <p className="text-sm text-gray-400 mb-4">
+          This will chain 3 agents: SEO Research → Content Strategy → AI Writer for the selected niche.
+        </p>
+        {niches.length === 0 ? (
+          <div className="text-center py-6">
+            <p className="text-sm text-gray-400">No niches found. Create one first.</p>
+            <a href="/" className="mt-2 inline-block text-sm text-indigo-400 hover:text-indigo-300">
+              ← Go to homepage
+            </a>
+          </div>
+        ) : (
+          <>
+            <div className="mb-4">
+              <label className="block text-sm text-gray-400 mb-1">Select Niche</label>
+              <select
+                value={selected}
+                onChange={(e) => setSelected(e.target.value)}
+                className="w-full rounded-lg border border-gray-700 bg-gray-900/60 px-4 py-2.5 text-sm text-gray-100 focus:border-indigo-500/50 focus:outline-none"
+              >
+                {niches.map((n) => (
+                  <option key={n.id} value={n.slug}>{n.niche_name} (/{n.slug})</option>
+                ))}
+              </select>
+            </div>
+            <button
+              onClick={handleStart}
+              disabled={!selected}
+              className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/25 transition-all duration-300 hover:shadow-cyan-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              🚀 Start Pipeline
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Dashboard() {
+  const { agents, tasks, niches, pendingTasks, completedTasks, nicheCount, allNiches } = Route.useLoaderData();
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showPipelineModal, setShowPipelineModal] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [runningTasks, setRunningTasks] = useState<Set<string>>(new Set());
+  const [pipelineRunning, setPipelineRunning] = useState(false);
+  const [pipelineResult, setPipelineResult] = useState<Record<string, unknown> | null>(null);
+  const [taskResults, setTaskResults] = useState<Record<string, unknown>>({});
+  const [taskErrors, setTaskErrors] = useState<Record<string, string>>({});
+
+  const handleRunTask = async (taskId: string) => {
+    setRunningTasks((prev) => new Set(prev).add(taskId));
+    setTaskErrors((prev) => {
+      const next = { ...prev };
+      delete next[taskId];
+      return next;
+    });
+    try {
+      const result = await runTaskAction(taskId);
+      setTaskResults((prev) => ({ ...prev, [taskId]: result }));
+      if (!result.success) {
+        setTaskErrors((prev) => ({ ...prev, [taskId]: result.error || "Task failed" }));
+      }
+    } catch (err) {
+      setTaskErrors((prev) => ({
+        ...prev,
+        [taskId]: err instanceof Error ? err.message : "Unknown error",
+      }));
+    } finally {
+      setRunningTasks((prev) => {
+        const next = new Set(prev);
+        next.delete(taskId);
+        return next;
+      });
+      setRefreshKey((k) => k + 1);
+    }
+  };
+
+  const handleStartPipeline = async (nicheSlug: string) => {
+    setPipelineRunning(true);
+    setPipelineResult(null);
+    try {
+      const result = await runPipelineAction(nicheSlug);
+      setPipelineResult(result as unknown as Record<string, unknown>);
+    } catch (err) {
+      setPipelineResult({
+        success: false,
+        error: err instanceof Error ? err.message : "Unknown error",
+      });
+    } finally {
+      setPipelineRunning(false);
+      setRefreshKey((k) => k + 1);
+    }
+  };
+
+  const refresh = () => setRefreshKey((k) => k + 1);
+
+  return (
+    <div className="flex flex-col" key={refreshKey}>
+      {/* Header */}
+      <section className="border-b border-gray-800/50 px-6 py-12 sm:py-16">
+        <div className="mx-auto max-w-6xl">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                🤖 AI Agent Dashboard
+              </h1>
+              <p className="mt-2 text-gray-400">
+                Monitor your AI marketing team, run tasks, and execute content pipelines.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowPipelineModal(true)}
+                className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-2.5 text-sm font-semibold text-cyan-300 transition-all duration-300 hover:bg-cyan-500/20 hover:border-cyan-500/50"
+              >
+                🚀 Run Content Pipeline
+              </button>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="rounded-xl bg-gradient-to-r from-indigo-500 to-cyan-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition-all duration-300 hover:shadow-indigo-500/40"
+              >
+                + Create Task
+              </button>
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div className="mt-8 grid gap-4 sm:grid-cols-4">
+            <div className="glass-card rounded-xl p-5">
+              <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Agents</p>
+              <p className="mt-1 text-3xl font-bold text-white">{agents.length}</p>
+              <p className="mt-1 text-xs text-gray-400">
+                {agents.filter((a: Record<string, unknown>) => a.status === "active").length} active
+              </p>
+            </div>
+            <div className="glass-card rounded-xl p-5">
+              <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Tasks Pending</p>
+              <p className="mt-1 text-3xl font-bold text-yellow-400">{tasks.pending}</p>
+              <p className="mt-1 text-xs text-gray-400">{tasks.completed} completed · {tasks.in_progress} in progress</p>
+            </div>
+            <div className="glass-card rounded-xl p-5">
+              <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Niche Profiles</p>
+              <p className="mt-1 text-3xl font-bold text-cyan-400">{nicheCount}</p>
+              <p className="mt-1 text-xs text-gray-400">active niches</p>
+            </div>
+            <div className="glass-card rounded-xl p-5">
+              <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Total Tasks</p>
+              <p className="mt-1 text-3xl font-bold text-white">{tasks.pending + tasks.completed + tasks.in_progress}</p>
+              <p className="mt-1 text-xs text-gray-400">across all niches</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Pipeline Status */}
+      {pipelineRunning && (
+        <section className="border-b border-gray-800/50 bg-blue-950/20 px-6 py-6">
+          <div className="mx-auto max-w-6xl">
+            <div className="glass-card rounded-xl p-5 border border-blue-500/20">
+              <div className="flex items-center gap-3">
+                <Spinner />
+                <div>
+                  <h3 className="font-semibold text-blue-300 text-sm">Content Pipeline Running...</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Chaining SEO Research → Content Strategy → AI Writer. This may take a minute.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {pipelineResult && (
+        <section className="border-b border-gray-800/50 bg-gray-900/30 px-6 py-6">
+          <div className="mx-auto max-w-6xl">
+            <div className={`glass-card rounded-xl p-5 border ${pipelineResult.success ? "border-green-500/20" : "border-red-500/20"}`}>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-white text-sm">
+                  Pipeline Result: {pipelineResult.nicheName ? String(pipelineResult.nicheName) : ""}
+                </h3>
+                <span className={`rounded-full px-3 py-0.5 text-xs font-medium ${
+                  pipelineResult.success
+                    ? "bg-green-900/60 text-green-400 border border-green-500/30"
+                    : "bg-red-900/60 text-red-400 border border-red-500/30"
+                }`}>
+                  {pipelineResult.success ? "✓ Complete" : "✗ Failed"}
+                </span>
+              </div>
+              {pipelineResult.error && (
+                <p className="text-sm text-red-400 mb-3">Error: {String(pipelineResult.error)}</p>
+              )}
+              {Array.isArray(pipelineResult.steps) && (
+                <div className="space-y-2">
+                  {(pipelineResult.steps as Array<Record<string, unknown>>).map((step, i) => (
+                    <div key={i} className="flex items-center gap-3 text-xs">
+                      <span className={step.success ? "text-green-400" : "text-red-400"}>
+                        {step.success ? "✓" : "✗"}
+                      </span>
+                      <span className="text-gray-300 font-medium">Step {String(step.step)}: {String(step.agent)}</span>
+                      <span className="text-gray-500">{String(step.summary)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button
+                onClick={() => setPipelineResult(null)}
+                className="mt-3 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Recent Niches */}
+      {niches.length > 0 && (
+        <section className="border-b border-gray-800/50 px-6 py-12">
+          <div className="mx-auto max-w-6xl">
+            <h2 className="text-xl font-bold tracking-tight">Recent Niches</h2>
+            <p className="mt-1 text-sm text-gray-400">Last {niches.length} niche profiles created.</p>
+
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {niches.map((niche: Record<string, unknown>) => (
+                <a
+                  key={niche.id as string}
+                  href={`/niche/${niche.slug}`}
+                  className="glass-card rounded-xl p-5 transition-all duration-300 hover:border-indigo-500/20 hover:shadow-[0_0_30px_rgba(99,102,241,0.06)]"
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-semibold text-white">{niche.niche_name as string}</h3>
+                      <p className="mt-0.5 text-xs text-gray-500">/{niche.slug as string}</p>
+                    </div>
+                    <span className="rounded-full bg-indigo-500/10 px-2.5 py-0.5 text-xs font-medium text-indigo-400">
+                      {niche.task_count as number} tasks
+                    </span>
+                  </div>
+                  <p className="mt-3 text-xs text-gray-500">
+                    Created {new Date(niche.created_at as string).toLocaleDateString()}
+                  </p>
+                </a>
+              ))}
+            </div>
+
+            {nicheCount > 5 && (
+              <p className="mt-4 text-center text-sm text-gray-500">
+                Showing 5 of {nicheCount} niches
+              </p>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* Pending Tasks */}
+      <section className="px-6 py-12">
+        <div className="mx-auto max-w-6xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold tracking-tight">Pending Tasks</h2>
+              <p className="mt-1 text-sm text-gray-400">Tasks waiting to be started. Click Run to execute with AI.</p>
+            </div>
+            <button
+              onClick={refresh}
+              className="text-xs text-gray-500 hover:text-gray-300 transition-colors flex items-center gap-1"
+            >
+              ↻ Refresh
+            </button>
+          </div>
+
+          {pendingTasks.length === 0 ? (
+            <div className="mt-6 glass-card rounded-xl p-8 text-center">
+              <div className="text-4xl">📋</div>
+              <p className="mt-3 text-lg font-medium text-white">No pending tasks</p>
+              <p className="mt-1 text-sm text-gray-400">
+                Create a niche from the homepage or use the Create Task button.
+              </p>
+              <a
+                href="/"
+                className="mt-4 inline-block text-sm text-indigo-400 hover:text-indigo-300"
+              >
+                ← Create a niche
+              </a>
+            </div>
+          ) : (
+            <div className="mt-6 space-y-3">
+              {pendingTasks.map((task: Record<string, unknown>) => {
+                const taskId = task.id as string;
+                const isRunning = runningTasks.has(taskId);
+                const taskResult = taskResults[taskId];
+                const taskErr = taskErrors[taskId];
+
+                return (
+                  <div key={taskId} className="glass-card rounded-xl p-4 transition-all duration-300 hover:border-indigo-500/20">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-white text-sm">{task.title as string}</h3>
+                        {task.description && (
+                          <p className="mt-1 text-xs text-gray-400 line-clamp-1">{task.description as string}</p>
+                        )}
+                        <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
+                          <span className="inline-flex items-center gap-1">
+                            <span className="text-indigo-400">Agent:</span> {task.agent_name as string}
+                          </span>
+                          <span>·</span>
+                          <span>{new Date(task.created_at as string).toLocaleDateString()}</span>
+                        </div>
+
+                        {/* Error display */}
+                        {taskErr && (
+                          <div className="mt-2 text-xs text-red-400 bg-red-900/20 rounded-lg p-2 border border-red-500/20">
+                            Error: {taskErr}
+                          </div>
+                        )}
+
+                        {/* Result display */}
+                        {taskResult && (
+                          <div className="mt-2 text-xs text-green-400 bg-green-900/20 rounded-lg p-2 border border-green-500/20">
+                            ✓ Task executed by {(taskResult as Record<string, unknown>).agentName as string || "agent"}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <TaskStatusBadge status={isRunning ? "in_progress" : (task.status as string)} />
+                        <button
+                          onClick={() => handleRunTask(taskId)}
+                          disabled={isRunning}
+                          className="rounded-lg bg-gradient-to-r from-indigo-500 to-cyan-500 px-3 py-1.5 text-xs font-semibold text-white shadow-md shadow-indigo-500/20 transition-all duration-300 hover:shadow-indigo-500/40 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                          title="Run task with AI agent"
+                        >
+                          {isRunning ? (
+                            <>
+                              <Spinner />
+                              Running
+                            </>
+                          ) : (
+                            "▶ Run"
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Completed Tasks */}
+      {completedTasks.length > 0 && (
+        <section className="border-t border-gray-800/50 px-6 py-12">
+          <div className="mx-auto max-w-6xl">
+            <h2 className="text-xl font-bold tracking-tight">Recently Completed</h2>
+            <p className="mt-1 text-sm text-gray-400">Latest completed tasks with AI-generated results.</p>
+
+            <div className="mt-6 space-y-3">
+              {completedTasks.map((task: Record<string, unknown>) => {
+                const taskId = task.id as string;
+                const liveResult = taskResults[taskId];
+
+                return (
+                  <div key={taskId} className="glass-card rounded-xl p-4 transition-all duration-300 hover:border-green-500/20">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-white text-sm">{task.title as string}</h3>
+                        {task.description && (
+                          <p className="mt-1 text-xs text-gray-400 line-clamp-1">{task.description as string}</p>
+                        )}
+                        <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
+                          <span className="inline-flex items-center gap-1">
+                            <span className="text-indigo-400">Agent:</span> {task.agent_name as string}
+                          </span>
+                          <span>·</span>
+                          <span>Completed {task.completed_at ? new Date(task.completed_at as string).toLocaleDateString() : "unknown"}</span>
+                        </div>
+                        <ResultDisplay result={liveResult?.result || task.result} />
+                      </div>
+                      <TaskStatusBadge status="completed" />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Agent List */}
+      <section className="border-t border-gray-800/50 px-6 py-12">
+        <div className="mx-auto max-w-6xl">
+          <h2 className="text-xl font-bold tracking-tight">AI Agent Team</h2>
+          <p className="mt-1 text-sm text-gray-400">Specialized agents ready to work on your niches.</p>
+
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {agents.map((agent: Record<string, unknown>) => (
+              <div key={agent.id as string} className="glass-card rounded-xl p-5 transition-all duration-300 hover:border-indigo-500/20">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="font-semibold text-white">{agent.name as string}</h3>
+                    <p className="mt-0.5 text-xs uppercase tracking-wider text-indigo-400">{agent.role as string}</p>
+                  </div>
+                  <StatusBadge status={agent.status as string} />
+                </div>
+                <p className="mt-3 text-xs leading-relaxed text-gray-400 line-clamp-2">{agent.description as string}</p>
+                <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+                  <span>{agent.tasks_completed as number} tasks done</span>
+                  <span>Score: {((agent.performance_score as number) * 100).toFixed(0)}%</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Create Task Modal */}
+      {showCreateModal && (
+        <CreateTaskModal
+          agents={agents.map((a: Record<string, unknown>) => ({ id: a.id as string, name: a.name as string }))}
+          onClose={() => setShowCreateModal(false)}
+          onCreated={() => {
+            setRefreshKey((k) => k + 1);
+            setTimeout(refresh, 500);
+          }}
+        />
+      )}
+
+      {/* Pipeline Modal */}
+      {showPipelineModal && (
+        <PipelineModal
+          niches={allNiches.map((n: Record<string, unknown>) => ({
+            id: n.id as string,
+            niche_name: n.niche_name as string,
+            slug: n.slug as string,
+          }))}
+          onClose={() => setShowPipelineModal(false)}
+          onStarted={handleStartPipeline}
+        />
+      )}
+    </div>
+  );
+}
