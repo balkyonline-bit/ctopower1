@@ -1,17 +1,45 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { hasDatabase } from "~/db";
+import { createServerFn } from "@tanstack/react-start";
+import { getSql, hasDatabase } from "~/db";
+
+// ── Server functions ──
+
+const fetchArticleCount = createServerFn().handler(async (slug: string) => {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT count(*) as cnt
+    FROM articles a
+    JOIN niche_profiles np ON a.niche_id = np.id
+    WHERE np.slug = ${slug} AND a.status = 'published'
+  `;
+  return Number((rows[0] as { cnt: string }).cnt);
+});
+
+// ── Route ──
 
 export const Route = createFileRoute("/niche/$slug")({
   loader: async ({ params }) => {
-    const nicheSlug = params.slug;
-    return { nicheSlug, dbConnected: hasDatabase() };
+    const slug = params.slug;
+    const dbConnected = hasDatabase();
+    let articleCount = 0;
+
+    if (dbConnected) {
+      try {
+        articleCount = await fetchArticleCount(slug);
+      } catch {
+        // DB might not have articles table yet
+      }
+    }
+
+    return { slug, articleCount, dbConnected };
   },
   component: NichePage,
 });
 
 function NichePage() {
-  const { nicheSlug, dbConnected } = Route.useLoaderData();
-  const displayName = nicheSlug
+  const { slug, articleCount, dbConnected } = Route.useLoaderData();
+
+  const displayName = slug
     .split("-")
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
@@ -23,24 +51,20 @@ function NichePage() {
           <div className="absolute left-1/2 top-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-indigo-500/10 blur-[120px]" />
           <div className="absolute right-1/4 top-1/3 h-[300px] w-[300px] rounded-full bg-cyan-500/8 blur-[100px]" />
         </div>
-
         <div className="mx-auto max-w-3xl text-center">
           <span className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-4 py-1.5 text-sm font-medium text-indigo-300">
             🤖 AI Team Activation
           </span>
-
           <h1 className="mt-8 text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
             Setting up your AI team for{" "}
             <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
               {displayName}
             </span>
           </h1>
-
           <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed text-gray-400 sm:text-lg">
             We're configuring specialized AI agents — research, writing, SEO, social media, email, and sales — all tailored to the{" "}
             <strong className="text-gray-200">{displayName}</strong> niche.
           </p>
-
           <div className="mt-10 flex flex-col items-center gap-4">
             <div className="flex items-center gap-2">
               {[1, 2, 3, 4].map((step) => (
@@ -53,7 +77,6 @@ function NichePage() {
               Researching market → Planning content → Activating agents → Ready to publish
             </p>
           </div>
-
           {!dbConnected && (
             <div className="mt-8 glass-card mx-auto max-w-md rounded-xl p-5">
               <p className="text-sm text-yellow-400">
@@ -61,7 +84,6 @@ function NichePage() {
               </p>
             </div>
           )}
-
           <div className="mt-10 flex flex-col items-center gap-4">
             <a
               href="/dashboard"
@@ -69,13 +91,20 @@ function NichePage() {
             >
               View AI Agent Dashboard →
             </a>
+            {articleCount > 0 && (
+              <a
+                href={`/niche/${slug}/articles`}
+                className="inline-flex items-center gap-2 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-6 py-3 text-sm font-medium text-indigo-300 transition-all duration-300 hover:border-indigo-500/50 hover:bg-indigo-500/20"
+              >
+                📝 {articleCount} Article{articleCount !== 1 ? 's' : ''} Published — View Library →
+              </a>
+            )}
             <a href="/" className="text-sm text-gray-500 transition hover:text-gray-300">
               ← Back to homepage
             </a>
           </div>
         </div>
       </section>
-
       <section className="border-t border-gray-800/50 px-6 py-16">
         <div className="mx-auto max-w-4xl">
           <h2 className="text-center text-2xl font-bold tracking-tight">What happens next?</h2>

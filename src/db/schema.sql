@@ -49,3 +49,20 @@ CREATE TABLE IF NOT EXISTS agent_activity_log (
   details JSONB,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Articles (content produced by AI Writer)
+CREATE TABLE IF NOT EXISTS articles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  niche_id UUID REFERENCES niche_profiles(id),
+  title TEXT NOT NULL,
+  slug TEXT NOT NULL,
+  content TEXT NOT NULL,
+  excerpt TEXT,
+  word_count INTEGER DEFAULT 0,
+  status TEXT DEFAULT 'draft',
+  seo_keywords TEXT[] DEFAULT '{}',
+  meta_description TEXT,
+  published_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(niche_id, slug)
+);

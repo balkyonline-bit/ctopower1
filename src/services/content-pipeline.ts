@@ -21,6 +21,11 @@ export interface PipelineResult {
     summary: string;
     error?: string;
   }>;
+  article?: {
+    id: string;
+    slug: string;
+    title: string;
+  };
   error?: string;
 }
 
@@ -247,12 +252,28 @@ Output as structured JSON with the full article content and metadata.
       error: writerResult.error,
     });
 
+    // Save article to database if writer succeeded
+    let savedArticle: { id: string; slug: string; title: string } | undefined;
+    if (writerResult.success) {
+      try {
+        savedArticle = await saveArticleFromWriterResult(
+          niche.id,
+          firstArticleTitle,
+          writerResult.result,
+        );
+      } catch (saveErr) {
+        console.error("Failed to save article to DB:", saveErr);
+        // Don't fail the pipeline — the article was still written
+      }
+    }
+
     const allSucceeded = steps.every((s) => s.success);
     return {
       success: allSucceeded,
       nicheSlug,
       nicheName: niche.niche_name,
       steps,
+      article: savedArticle,
     };
   } catch (err) {
     steps.push({
@@ -269,3 +290,91 @@ Output as structured JSON with the full article content and metadata.
 
 // Internal type for the pipeline
 type ExecuteTaskResultForPipeline = Awaited<ReturnType<typeof executeTask>>;
+
+/**
+ * Parse the writer LLM result and save it as an article in the database.
+ * Returns the saved article's id, slug, and title.
+ */
+async function saveArticleFromWriterResult(
+  nicheId: string,
+  articleTitle: string,
+  writerResult: unknown,
+): Promise<{ id: string; slug: string; title: string }> {
+  const sql = getSql();
+
+  // Extract article content from the writer result
+  let content = "";
+  let excerpt = "";
+  let seoKeywords: string[] = [];
+  let metaDescription = "";
+
+  if (typeof writerResult === "object" && writerResult !== null) {
+    const r = writerResult as Record<string, unknown>;
+
+    // Try common field names for content
+    content = String(
+      r.content ?? r.article ?? r.body ?? r.text ?? r.output ?? JSON.stringify(writerResult, null, 2),
+    );
+
+    // Try to extract title if present
+    if (r.title && typeof r.title === "string") {
+      articleTitle = r.title;
+    }
+
+    // Extract excerpt
+    excerpt = String(r.excerpt ?? r.summary ?? r.description ?? "");
+
+    // Extract keywords
+    if (Array.isArray(r.keywords ?? r.seo_keywords ?? r.tags)) {
+      seoKeywords = (r.keywords ?? r.seo_keywords ?? r.tags) as string[];
+    }
+
+    // Meta description
+    metaDescription = String(r.meta_description ?? r.metaDescription ?? r.excerpt ?? "");
+  } else if (typeof writerResult === "string") {
+    content = writerResult;
+  }
+
+  // Generate a slug from the title
+  const slug = articleTitle
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .substring(0, 120);
+
+  // Count words
+  const wordCount = content
+    .replace(/[#*`>\-\s]+/g, " ")
+    .split(/\s+/)
+    .filter(Boolean).length;
+
+  // Generate excerpt if empty (first 200 chars of content)
+  if (!excerpt) {
+    excerpt = content
+      .replace(/[#*`>\-\n]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .substring(0, 200);
+    if (content.length > 200) excerpt += "...";
+  }
+
+  // Insert into articles table
+  const result = await sql`
+    INSERT INTO articles (niche_id, title, slug, content, excerpt, word_count, status, seo_keywords, meta_description, published_at)
+    VALUES (${nicheId}, ${articleTitle}, ${slug}, ${content}, ${excerpt}, ${wordCount}, 'published', ${seoKeywords}, ${metaDescription}, NOW())
+    ON CONFLICT (niche_id, slug)
+    DO UPDATE SET
+      title = EXCLUDED.title,
+      content = EXCLUDED.content,
+      excerpt = EXCLUDED.excerpt,
+      word_count = EXCLUDED.word_count,
+      seo_keywords = EXCLUDED.seo_keywords,
+      meta_description = EXCLUDED.meta_description,
+      published_at = EXCLUDED.published_at
+    RETURNING id
+  `;
+
+  const articleId = (result[0] as { id: string }).id;
+
+  return { id: articleId, slug, title: articleTitle };
+}

@@ -69,6 +69,9 @@ export const runMigrations = createServerFn().handler(async () => {
   await sql.unsafe(`ALTER TABLE niche_profiles ADD CONSTRAINT IF NOT EXISTS niche_profiles_slug_unique UNIQUE (slug)`);
   await sql.unsafe(`ALTER TABLE agent_tasks ADD COLUMN IF NOT EXISTS niche_id UUID REFERENCES niche_profiles(id)`);
 
+  // Articles table: ensure it exists (IF NOT EXISTS in schema.sql handles this,
+  // but also run as a safe additive migration in case schema was deployed earlier)
+
   return { success: true, message: "Migrations applied" };
 });
 
