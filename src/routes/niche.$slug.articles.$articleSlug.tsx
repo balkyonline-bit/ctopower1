@@ -1,6 +1,7 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "~/db";
+import { useTranslation } from "react-i18next";
 
 // ── Server functions ──
 
@@ -8,7 +9,6 @@ const fetchArticle = createServerFn().handler(
   async (params: { nicheSlug: string; articleSlug: string }) => {
     const sql = getSql();
 
-    // Find the niche first
     const nicheRows = await sql`
       SELECT id, niche_name, slug FROM niche_profiles WHERE slug = ${params.nicheSlug} LIMIT 1
     `;
@@ -16,7 +16,6 @@ const fetchArticle = createServerFn().handler(
 
     const niche = nicheRows[0] as { id: string; niche_name: string; slug: string };
 
-    // Find the article
     const articleRows = await sql`
       SELECT a.id, a.title, a.slug, a.content, a.excerpt, a.word_count,
              a.status, a.seo_keywords, a.meta_description, a.published_at, a.created_at,
@@ -102,93 +101,51 @@ function readingTime(wordCount: number): string {
   return `${minutes} min read`;
 }
 
-/**
- * Simple Markdown-to-HTML converter for article content.
- * Handles headings, bold, italic, links, lists, code blocks, and paragraphs.
- */
 function renderMarkdown(md: string): string {
   let html = md;
-
-  // Escape HTML entities in non-code blocks
   html = html.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-  // Code blocks (```...```)
   html = html.replace(
     /```(\w*)\n([\s\S]*?)```/g,
     (_match, lang: string, code: string) => {
       return `<pre class="my-4 overflow-x-auto rounded-lg border border-gray-700 bg-gray-900/80 p-4 text-sm"><code class="language-${lang || "text"}">${code.trim()}</code></pre>`;
     },
   );
-
-  // Inline code (`...`)
   html = html.replace(
     /`([^`]+)`/g,
     '<code class="rounded bg-gray-800 px-1.5 py-0.5 text-sm text-cyan-400">$1</code>',
   );
-
-  // Headings (must be before bold/italic)
   html = html.replace(/^#### (.+)$/gm, '<h4 class="mt-8 mb-3 text-lg font-semibold text-white">$1</h4>');
   html = html.replace(/^### (.+)$/gm, '<h3 class="mt-8 mb-3 text-xl font-semibold text-white">$1</h3>');
   html = html.replace(/^## (.+)$/gm, '<h2 class="mt-10 mb-4 text-2xl font-bold text-white">$1</h2>');
   html = html.replace(/^# (.+)$/gm, '<h1 class="mt-10 mb-4 text-3xl font-bold text-white">$1</h1>');
-
-  // Bold and italic
   html = html.replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>");
   html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
   html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
-
-  // Links [text](url)
   html = html.replace(
     /\[([^\]]+)\]\(([^)]+)\)/g,
     '<a href="$2" class="text-indigo-400 underline hover:text-indigo-300" target="_blank" rel="noopener">$1</a>',
   );
-
-  // Unordered lists
   html = html.replace(/^[\*\-] (.+)$/gm, '<li class="ml-5 list-disc text-gray-400">$1</li>');
   html = html.replace(/((?:<li class="ml-5 list-disc[^>]*>.*<\/li>\n?)+)/g, '<ul class="my-3 space-y-1.5">$1</ul>');
-
-  // Ordered lists
   html = html.replace(/^\d+\. (.+)$/gm, '<li class="ml-5 list-decimal text-gray-400">$1</li>');
-
-  // Horizontal rules
   html = html.replace(/^---$/gm, '<hr class="my-8 border-gray-700" />');
-
-  // Paragraphs: wrap remaining text blocks in <p>
   const lines = html.split("\n");
   const result: string[] = [];
   let inList = false;
-
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
-
     if (trimmed === "") {
-      if (inList) {
-        result.push("</ul>");
-        inList = false;
-      }
+      if (inList) { result.push("</ul>"); inList = false; }
       result.push("");
       continue;
     }
-
-    // Skip already-wrapped elements
-    if (
-      trimmed.startsWith("<h") ||
-      trimmed.startsWith("<pre") ||
-      trimmed.startsWith("<ul") ||
-      trimmed.startsWith("<li") ||
-      trimmed.startsWith("<hr") ||
-      trimmed.startsWith("<table") ||
-      trimmed === "</ul>"
-    ) {
+    if (trimmed.startsWith("<h") || trimmed.startsWith("<pre") || trimmed.startsWith("<ul") || trimmed.startsWith("<li") || trimmed.startsWith("<hr") || trimmed.startsWith("<table") || trimmed === "</ul>") {
       result.push(line);
       continue;
     }
-
-    // Wrap as paragraph
     result.push(`<p class="my-3 leading-relaxed text-gray-300">${trimmed}</p>`);
   }
-
   return result.join("\n").replace(/\n{3,}/g, "\n\n");
 }
 
@@ -196,6 +153,7 @@ function renderMarkdown(md: string): string {
 
 function NicheArticleDetailPage() {
   const article = Route.useLoaderData();
+  const { t } = useTranslation();
 
   const articleHtml = renderMarkdown(article.content);
 
@@ -208,7 +166,7 @@ function NicheArticleDetailPage() {
         </a>
         <span>/</span>
         <a href={`/niche/${article.niche_slug}/articles`} className="hover:text-indigo-400">
-          Articles
+          {t("article.articles")}
         </a>
         <span>/</span>
         <span className="truncate text-gray-400">{article.title}</span>
@@ -216,7 +174,6 @@ function NicheArticleDetailPage() {
 
       {/* Header */}
       <header className="mb-10">
-        {/* Keywords */}
         {article.seo_keywords.length > 0 && (
           <div className="mb-4 flex flex-wrap gap-1.5">
             {article.seo_keywords.map((kw) => (
@@ -240,46 +197,40 @@ function NicheArticleDetailPage() {
           </p>
         )}
 
-        {/* Metadata bar */}
         <div className="mt-6 flex flex-wrap items-center gap-4 border-t border-gray-800 pt-6">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-cyan-500 text-sm font-bold text-white">
             AI
           </div>
           <div>
-            <p className="text-sm font-medium text-white">AI Writer Agent</p>
+            <p className="text-sm font-medium text-white">{t("article.aiAuthor")}</p>
             <p className="text-xs text-gray-500">
               {article.published_at
-                ? `Published ${formatDate(article.published_at)}`
-                : `Created ${formatDate(article.created_at)}`}{" "}
-              · {readingTime(article.word_count)} · {article.word_count.toLocaleString()} words
+                ? `${t("article.published")} ${formatDate(article.published_at)}`
+                : `${t("article.created")} ${formatDate(article.created_at)}`}{" "}
+              · {readingTime(article.word_count)} · {article.word_count.toLocaleString()} {t("article.words")}
             </p>
           </div>
         </div>
       </header>
 
-      {/* Article body */}
       <div
         className="prose-custom space-y-4"
         dangerouslySetInnerHTML={{ __html: articleHtml }}
       />
 
-      {/* Affiliate disclosure */}
       <div className="mt-12 rounded-xl border border-gray-800 bg-gray-900/60 p-5">
         <p className="text-xs leading-relaxed text-gray-500">
-          <strong className="text-gray-400">Disclaimer:</strong>{" "}
-          This article was generated by our AI Writer Agent. Content may contain
-          affiliate links. We strive for accuracy but recommend verifying
-          important information independently.
+          <strong className="text-gray-400">{t("article.disclaimerLabel")}</strong>{" "}
+          {t("article.disclaimer")}
         </p>
       </div>
 
-      {/* Back link */}
       <div className="mt-10 border-t border-gray-800 pt-8">
         <a
           href={`/niche/${article.niche_slug}/articles`}
           className="inline-flex items-center gap-2 rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 transition hover:border-gray-600 hover:text-white"
         >
-          ← Back to articles
+          {t("article.backToArticles")}
         </a>
       </div>
     </article>

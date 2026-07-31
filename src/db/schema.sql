@@ -66,3 +66,16 @@ CREATE TABLE IF NOT EXISTS articles (
   created_at TIMESTAMPTZ DEFAULT now(),
   UNIQUE(niche_id, slug)
 );
+
+-- Media Assets (agent output gallery: images, videos, social posts, messages)
+CREATE TABLE IF NOT EXISTS media_assets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agent_id UUID REFERENCES ai_agents(id),
+  niche_id UUID REFERENCES niche_profiles(id),
+  type TEXT NOT NULL CHECK (type IN ('image', 'video', 'social_post', 'message', 'article')),
+  title TEXT,
+  content TEXT,
+  url TEXT,
+  metadata JSONB,
+  created_at TIMESTAMPTZ DEFAULT now()
+);

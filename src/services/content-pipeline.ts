@@ -376,5 +376,35 @@ async function saveArticleFromWriterResult(
 
   const articleId = (result[0] as { id: string }).id;
 
+  // Save to media_assets for the gallery
+  try {
+    // Get the writer agent
+    const writerAgent = await sql`
+      SELECT id FROM ai_agents WHERE role = 'writer' LIMIT 1
+    `;
+    const writerId = writerAgent.length > 0 ? (writerAgent[0] as { id: string }).id : null;
+
+    await sql`
+      INSERT INTO media_assets (agent_id, niche_id, type, title, content, metadata, created_at)
+      VALUES (
+        ${writerId},
+        ${nicheId},
+        'article',
+        ${articleTitle},
+        ${excerpt},
+        ${JSON.stringify({
+          article_id: articleId,
+          article_slug: slug,
+          word_count: wordCount,
+          seo_keywords: seoKeywords,
+          meta_description: metaDescription,
+        })},
+        NOW()
+      )
+    `;
+  } catch (mediaErr) {
+    console.error("Failed to log article to media_assets:", mediaErr);
+  }
+
   return { id: articleId, slug, title: articleTitle };
 }

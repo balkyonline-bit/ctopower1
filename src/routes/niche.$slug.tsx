@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { getSql, hasDatabase } from "~/db";
+import { useTranslation } from "react-i18next";
 
 // ── Server functions ──
 
@@ -38,6 +39,7 @@ export const Route = createFileRoute("/niche/$slug")({
 
 function NichePage() {
   const { slug, articleCount, dbConnected } = Route.useLoaderData();
+  const { t } = useTranslation();
 
   const displayName = slug
     .split("-")
@@ -53,17 +55,18 @@ function NichePage() {
         </div>
         <div className="mx-auto max-w-3xl text-center">
           <span className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-4 py-1.5 text-sm font-medium text-indigo-300">
-            🤖 AI Team Activation
+            {t("niche.badge")}
           </span>
           <h1 className="mt-8 text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
-            Setting up your AI team for{" "}
+            {t("niche.settingUp")}{" "}
             <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
               {displayName}
             </span>
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed text-gray-400 sm:text-lg">
-            We're configuring specialized AI agents — research, writing, SEO, social media, email, and sales — all tailored to the{" "}
-            <strong className="text-gray-200">{displayName}</strong> niche.
+            {t("niche.configuring")}{" "}
+            <strong className="text-gray-200">{displayName}</strong>{" "}
+            {t("niche.nicheLabel")}
           </p>
           <div className="mt-10 flex flex-col items-center gap-4">
             <div className="flex items-center gap-2">
@@ -74,13 +77,13 @@ function NichePage() {
               ))}
             </div>
             <p className="text-sm text-gray-500">
-              Researching market → Planning content → Activating agents → Ready to publish
+              {t("niche.progressLabel")}
             </p>
           </div>
           {!dbConnected && (
             <div className="mt-8 glass-card mx-auto max-w-md rounded-xl p-5">
               <p className="text-sm text-yellow-400">
-                ⚠️ Database not connected — running in demo mode with in-memory agents.
+                {t("niche.demoMode")}
               </p>
             </div>
           )}
@@ -89,30 +92,30 @@ function NichePage() {
               href="/dashboard"
               className="inline-block rounded-xl bg-gradient-to-r from-indigo-500 to-cyan-500 px-8 py-4 text-base font-semibold text-white shadow-lg shadow-indigo-500/25 transition-all duration-300 hover:shadow-indigo-500/40 hover:scale-[1.02]"
             >
-              View AI Agent Dashboard →
+              {t("niche.viewDashboard")}
             </a>
             {articleCount > 0 && (
               <a
                 href={`/niche/${slug}/articles`}
                 className="inline-flex items-center gap-2 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-6 py-3 text-sm font-medium text-indigo-300 transition-all duration-300 hover:border-indigo-500/50 hover:bg-indigo-500/20"
               >
-                📝 {articleCount} Article{articleCount !== 1 ? 's' : ''} Published — View Library →
+                📝 {articleCount} {articleCount !== 1 ? t("niche.articlesPublished_plural") : t("niche.articlesPublished")} {t("niche.viewLibrary")}
               </a>
             )}
             <a href="/" className="text-sm text-gray-500 transition hover:text-gray-300">
-              ← Back to homepage
+              {t("niche.backHome")}
             </a>
           </div>
         </div>
       </section>
       <section className="border-t border-gray-800/50 px-6 py-16">
         <div className="mx-auto max-w-4xl">
-          <h2 className="text-center text-2xl font-bold tracking-tight">What happens next?</h2>
+          <h2 className="text-center text-2xl font-bold tracking-tight">{t("niche.whatNext")}</h2>
           <div className="mt-10 grid gap-6 sm:grid-cols-3">
             {[
-              { emoji: "🔍", title: "Market Research", desc: `Our SEO Research Agent analyzes the ${displayName} market — finding high-value keywords, content gaps, and competitor strategies.` },
-              { emoji: "✍️", title: "Content Creation", desc: `The AI Writer and Content Strategist plan and produce SEO-optimized articles, guides, and product reviews for ${displayName}.` },
-              { emoji: "💰", title: "Monetization", desc: "Affiliate, ads, digital products — the monetization engine activates multiple revenue channels automatically." },
+              { emoji: "🔍", title: t("niche.marketResearch"), desc: t("niche.marketResearchDesc", { niche: displayName }) },
+              { emoji: "✍️", title: t("niche.contentCreation"), desc: t("niche.contentCreationDesc", { niche: displayName }) },
+              { emoji: "💰", title: t("niche.monetization"), desc: t("niche.monetizationDesc") },
             ].map((item) => (
               <div key={item.title} className="glass-card rounded-2xl p-6 text-center">
                 <div className="text-4xl">{item.emoji}</div>

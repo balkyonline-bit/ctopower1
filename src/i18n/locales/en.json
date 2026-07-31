@@ -1,0 +1,201 @@
+{
+  "nav": {
+    "platform": "Platform",
+    "demo": "Demo",
+    "pricing": "Pricing",
+    "getStarted": "Get Started",
+    "dashboard": "Dashboard",
+    "gallery": "Gallery",
+    "home": "Home"
+  },
+  "footer": {
+    "poweredBy": "Powered by EmpireAI",
+    "tagline": "AI-Powered Content Empire — autonomous niche content sites run by specialized AI agent teams."
+  },
+  "home": {
+    "badge": "🤖 AI-Powered Content Platform",
+    "heroLine1": "Enter Any Niche.",
+    "heroLine2": "Get an AI Marketing Empire.",
+    "subtitle": "Type any industry or topic — {{businessName}} instantly builds your complete AI marketing department. Research, writing, SEO, design, video, social media, email, and sales — all autonomous, all for you.",
+    "placeholder": "e.g. solar panels, vegan recipes, crypto trading...",
+    "cta": "Get Started →",
+    "creating": "Creating...",
+    "liveDemo": "See live example: AI Tools & Automation niche →",
+    "stats": {
+      "aiTeam": "Your AI Team",
+      "aiTeamDesc": "Research, Writing, SEO, Design, Marketing",
+      "revenue": "Revenue Channels",
+      "revenueDesc": "Affiliate, Ads, Products, Subscriptions",
+      "liveDemo": "Live Demo",
+      "liveDemoDesc": "AI Tools niche, 1 article live →"
+    },
+    "howItWorks": {
+      "title": "How It Works",
+      "subtitle": "From niche to revenue — fully autonomous.",
+      "step1Title": "Enter Your Niche",
+      "step1Desc": "Type any industry or topic you want to build a content business around. One field, infinite possibilities.",
+      "step2Title": "AI Team Activates",
+      "step2Desc": "Specialized agents research your market, strategize content, write articles, design visuals, and build products.",
+      "step3Title": "Revenue Flows",
+      "step3Desc": "Content publishes automatically. Traffic grows. Money comes in through affiliate, ads, products, and subscriptions."
+    },
+    "ctaSection": {
+      "title": "Ready to build your AI marketing empire?",
+      "subtitle": "Enter your niche below and let the AI team get to work."
+    }
+  },
+  "dashboard": {
+    "title": "🤖 AI Agent Dashboard",
+    "subtitle": "Monitor your AI marketing team, run tasks, and execute content pipelines.",
+    "stats": {
+      "agents": "Agents",
+      "active": "active",
+      "tasksPending": "Tasks Pending",
+      "completed": "completed",
+      "inProgress": "in progress",
+      "nicheProfiles": "Niche Profiles",
+      "activeNiches": "active niches",
+      "totalTasks": "Total Tasks",
+      "acrossAllNiches": "across all niches"
+    },
+    "recentNiches": "Recent Niches",
+    "recentNichesDesc": "Last {{count}} niche profiles created.",
+    "tasks": "tasks",
+    "created": "Created",
+    "showingOf": "Showing {{shown}} of {{total}} niches",
+    "pendingTasks": "Pending Tasks",
+    "pendingTasksDesc": "Tasks waiting to be started. Click Run to execute with AI.",
+    "noPendingTasks": "No pending tasks",
+    "noPendingTasksDesc": "Create a niche from the homepage or use the Create Task button.",
+    "createNiche": "← Create a niche",
+    "agent": "Agent:",
+    "run": "▶ Run",
+    "running": "Running",
+    "recentlyCompleted": "Recently Completed",
+    "recentlyCompletedDesc": "Latest completed tasks with AI-generated results.",
+    "completedOn": "Completed",
+    "showResult": "▶ Show Result",
+    "hideResult": "▼ Hide Result",
+    "aiAgentTeam": "AI Agent Team",
+    "aiAgentTeamDesc": "Specialized agents ready to work on your niches.",
+    "tasksDone": "tasks done",
+    "score": "Score:",
+    "runPipeline": "🚀 Run Content Pipeline",
+    "createTask": "+ Create Task",
+    "createTaskTitle": "Create Task",
+    "taskTitle": "Title",
+    "taskDescription": "Description",
+    "taskTitlePlaceholder": "Task title...",
+    "taskDescPlaceholder": "Task description...",
+    "assignToAgent": "Assign to Agent",
+    "createTaskBtn": "Create Task",
+    "creatingTask": "Creating...",
+    "pipelineModalTitle": "Run Content Pipeline",
+    "pipelineModalDesc": "This will chain 3 agents: SEO Research → Content Strategy → AI Writer for the selected niche.",
+    "selectNiche": "Select Niche",
+    "startPipeline": "🚀 Start Pipeline",
+    "noNichesFound": "No niches found. Create one first.",
+    "goHomepage": "← Go to homepage",
+    "pipelineRunning": "Content Pipeline Running...",
+    "pipelineRunningDesc": "Chaining SEO Research → Content Strategy → AI Writer. This may take a minute.",
+    "pipelineResult": "Pipeline Result:",
+    "complete": "✓ Complete",
+    "failed": "✗ Failed",
+    "error": "Error:",
+    "dismiss": "Dismiss",
+    "refresh": "↻ Refresh"
+  },
+  "niche": {
+    "badge": "🤖 AI Team Activation",
+    "settingUp": "Setting up your AI team for",
+    "configuring": "We're configuring specialized AI agents — research, writing, SEO, social media, email, and sales — all tailored to the",
+    "nicheLabel": "niche.",
+    "progressLabel": "Researching market → Planning content → Activating agents → Ready to publish",
+    "demoMode": "⚠️ Database not connected — running in demo mode with in-memory agents.",
+    "viewDashboard": "View AI Agent Dashboard →",
+    "articlesPublished": "Article",
+    "articlesPublished_plural": "Articles",
+    "viewLibrary": "Published — View Library →",
+    "backHome": "← Back to homepage",
+    "whatNext": "What happens next?",
+    "marketResearch": "Market Research",
+    "marketResearchDesc": "Our SEO Research Agent analyzes the {{niche}} market — finding high-value keywords, content gaps, and competitor strategies.",
+    "contentCreation": "Content Creation",
+    "contentCreationDesc": "The AI Writer and Content Strategist plan and produce SEO-optimized articles, guides, and product reviews for {{niche}}.",
+    "monetization": "Monetization",
+    "monetizationDesc": "Affiliate, ads, digital products — the monetization engine activates multiple revenue channels automatically."
+  },
+  "articles": {
+    "backTo": "← Back to",
+    "title": "Articles",
+    "subtitle": "AI-generated, SEO-optimized content for the",
+    "nicheLabel": "niche.",
+    "published": "article published",
+    "published_plural": "articles published",
+    "noArticles": "No articles yet",
+    "noArticlesDesc": "Run the content pipeline to generate your first AI-written article for the {{niche}} niche.",
+    "runPipeline": "Run Content Pipeline →",
+    "read": "Read →",
+    "draft": "Draft",
+    "minRead": "min read"
+  },
+  "article": {
+    "articles": "Articles",
+    "aiAuthor": "AI Writer Agent",
+    "published": "Published",
+    "created": "Created",
+    "minRead": "min read",
+    "words": "words",
+    "disclaimer": "This article was generated by our AI Writer Agent. Content may contain affiliate links. We strive for accuracy but recommend verifying important information independently.",
+    "disclaimerLabel": "Disclaimer:",
+    "backToArticles": "← Back to articles",
+    "notFound": "Article not found"
+  },
+  "gallery": {
+    "title": "🎨 Agent Output Gallery",
+    "subtitle": "Everything your AI agents have produced — articles, activity, and future media.",
+    "tabs": {
+      "all": "All",
+      "articles": "📝 Articles",
+      "images": "🖼️ Images",
+      "socialPosts": "📱 Social Posts",
+      "messages": "💬 Agent Messages"
+    },
+    "empty": "No content yet. Run the content pipeline to generate output.",
+    "activityFeed": "📋 Agent Activity Feed",
+    "activityFeedDesc": "Real-time log of agent actions and events.",
+    "articleCard": {
+      "byAgent": "by",
+      "words": "words",
+      "viewArticle": "View Article →"
+    },
+    "messageCard": {
+      "actionLabel": "Action:"
+    }
+  },
+  "api": {
+    "runTitle": "Agent Run API",
+    "runDesc": "Use the server functions to execute AI agent tasks and content pipelines.",
+    "actionTitle": "Agent Action API",
+    "actionDesc": "Use the logAgentAction server function to log agent activities.",
+    "requestPayload": "Request Payload",
+    "response": "Response",
+    "executeTask": "POST /api/run — Execute Task",
+    "executeTaskDesc": "Calls runTaskAction server function. Returns the task execution result with agent info and LLM output.",
+    "pipelineEndpoint": "POST /api/run/pipeline — Content Pipeline",
+    "pipelineEndpointDesc": "Calls runPipelineAction server function. Chains SEO → Strategist → Writer tasks for the given niche.",
+    "pipelineResponseLabel": "Pipeline Response",
+    "actionLoggedTo": "Actions are logged to the agent_activity_log table."
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "notFound": "Page not found",
+    "back": "← Back"
+  },
+  "language": {
+    "switcher": "Language",
+    "en": "English",
+    "hr": "Croatian"
+  }
+}

@@ -146,6 +146,36 @@ export async function executeTask(
     WHERE id = ${taskId}
   `;
 
+  // 6b. Save output to media_assets for the gallery
+  try {
+    // Check if task has a niche_id
+    const taskInfo = await sql`
+      SELECT niche_id FROM agent_tasks WHERE id = ${taskId} LIMIT 1
+    `;
+    const nicheId = (taskInfo[0] as { niche_id: string | null } | undefined)?.niche_id ?? null;
+
+    const resultSummary =
+      typeof parsedResult === "object" && parsedResult !== null
+        ? JSON.stringify(parsedResult).substring(0, 500)
+        : String(parsedResult).substring(0, 500);
+
+    await sql`
+      INSERT INTO media_assets (agent_id, niche_id, type, title, content, metadata, created_at)
+      VALUES (
+        ${agent.id},
+        ${nicheId},
+        'message',
+        ${task.title},
+        ${resultSummary},
+        ${JSON.stringify({ task_id: taskId, agent_role: agent.role, agent_name: agent.name })},
+        NOW()
+      )
+    `;
+  } catch (mediaErr) {
+    // Non-critical — don't fail the task if gallery logging fails
+    console.error("Failed to log media asset:", mediaErr);
+  }
+
   // 7. Log to agent_activity_log
   await sql`
     INSERT INTO agent_activity_log (agent_id, action, details)

@@ -1,0 +1,201 @@
+{
+  "nav": {
+    "platform": "Platforma",
+    "demo": "Demo",
+    "pricing": "Cijene",
+    "getStarted": "Započni",
+    "dashboard": "Nadzorna ploča",
+    "gallery": "Galerija",
+    "home": "Početna"
+  },
+  "footer": {
+    "poweredBy": "Pokreće EmpireAI",
+    "tagline": "AI-Powered Content Empire — autonomne niša web stranice koje vode specijalizirani AI agent timovi."
+  },
+  "home": {
+    "badge": "🤖 Platforma za sadržaj vođena umjetnom inteligencijom",
+    "heroLine1": "Unesi bilo koju nišu.",
+    "heroLine2": "Dobij AI marketinško carstvo.",
+    "subtitle": "Upiši bilo koju industriju ili temu — {{businessName}} odmah gradi tvoj cjeloviti AI marketinški odjel. Istraživanje, pisanje, SEO, dizajn, video, društvene mreže, e-pošta i prodaja — sve autonomno, sve za tebe.",
+    "placeholder": "npr. solarne ploče, veganski recepti, kripto trgovanje...",
+    "cta": "Započni →",
+    "creating": "Stvaram...",
+    "liveDemo": "Pogledaj primjer uživo: AI alati i automatizacija →",
+    "stats": {
+      "aiTeam": "Tvoj AI tim",
+      "aiTeamDesc": "Istraživanje, pisanje, SEO, dizajn, marketing",
+      "revenue": "Kanali prihoda",
+      "revenueDesc": "Affiliate, oglasi, proizvodi, pretplate",
+      "liveDemo": "Demo uživo",
+      "liveDemoDesc": "AI alati niša, 1 članak uživo →"
+    },
+    "howItWorks": {
+      "title": "Kako funkcionira",
+      "subtitle": "Od niše do prihoda — potpuno autonomno.",
+      "step1Title": "Unesi svoju nišu",
+      "step1Desc": "Upiši bilo koju industriju ili temu oko koje želiš graditi sadržajni biznis. Jedno polje, beskonačne mogućnosti.",
+      "step2Title": "AI tim se aktivira",
+      "step2Desc": "Specijalizirani agenti istražuju tvoje tržište, osmišljavaju strategiju sadržaja, pišu članke, dizajniraju vizuale i stvaraju proizvode.",
+      "step3Title": "Prihod pritječe",
+      "step3Desc": "Sadržaj se automatski objavljuje. Promet raste. Novac dolazi kroz affiliate, oglase, proizvode i pretplate."
+    },
+    "ctaSection": {
+      "title": "Spreman za izgradnju svog AI marketinškog carstva?",
+      "subtitle": "Unesi svoju nišu ispod i pusti AI tim da se baci na posao."
+    }
+  },
+  "dashboard": {
+    "title": "🤖 Nadzorna ploča AI agenata",
+    "subtitle": "Prati svoj AI marketinški tim, pokreći zadatke i izvršavaj sadržajne cjevovode.",
+    "stats": {
+      "agents": "Agenti",
+      "active": "aktivno",
+      "tasksPending": "Zadaci na čekanju",
+      "completed": "dovršeno",
+      "inProgress": "u tijeku",
+      "nicheProfiles": "Profili niša",
+      "activeNiches": "aktivne niše",
+      "totalTasks": "Ukupno zadataka",
+      "acrossAllNiches": "u svim nišama"
+    },
+    "recentNiches": "Nedavne niše",
+    "recentNichesDesc": "Zadnjih {{count}} kreiranih profila niša.",
+    "tasks": "zadataka",
+    "created": "Kreirano",
+    "showingOf": "Prikazano {{shown}} od {{total}} niša",
+    "pendingTasks": "Zadaci na čekanju",
+    "pendingTasksDesc": "Zadaci koji čekaju pokretanje. Klikni Pokreni za izvršavanje s AI-jem.",
+    "noPendingTasks": "Nema zadataka na čekanju",
+    "noPendingTasksDesc": "Kreiraj nišu s početne stranice ili koristi gumb Kreiraj zadatak.",
+    "createNiche": "← Kreiraj nišu",
+    "agent": "Agent:",
+    "run": "▶ Pokreni",
+    "running": "Izvršavam",
+    "recentlyCompleted": "Nedavno dovršeno",
+    "recentlyCompletedDesc": "Najnoviji dovršeni zadaci s rezultatima AI-ja.",
+    "completedOn": "Dovršeno",
+    "showResult": "▶ Prikaži rezultat",
+    "hideResult": "▼ Sakrij rezultat",
+    "aiAgentTeam": "AI agentski tim",
+    "aiAgentTeamDesc": "Specijalizirani agenti spremni za rad na tvojim nišama.",
+    "tasksDone": "zadataka gotovo",
+    "score": "Ocjena:",
+    "runPipeline": "🚀 Pokreni sadržajni cjevovod",
+    "createTask": "+ Kreiraj zadatak",
+    "createTaskTitle": "Kreiraj zadatak",
+    "taskTitle": "Naslov",
+    "taskDescription": "Opis",
+    "taskTitlePlaceholder": "Naslov zadatka...",
+    "taskDescPlaceholder": "Opis zadatka...",
+    "assignToAgent": "Dodijeli agentu",
+    "createTaskBtn": "Kreiraj zadatak",
+    "creatingTask": "Kreiram...",
+    "pipelineModalTitle": "Pokreni sadržajni cjevovod",
+    "pipelineModalDesc": "Ovo će ulančati 3 agenta: SEO istraživanje → Strategija sadržaja → AI pisac za odabranu nišu.",
+    "selectNiche": "Odaberi nišu",
+    "startPipeline": "🚀 Pokreni cjevovod",
+    "noNichesFound": "Nema pronađenih niša. Prvo kreiraj jednu.",
+    "goHomepage": "← Idi na početnu",
+    "pipelineRunning": "Sadržajni cjevovod se izvršava...",
+    "pipelineRunningDesc": "Ulančavanje SEO istraživanje → Strategija sadržaja → AI pisac. Može potrajati minutu.",
+    "pipelineResult": "Rezultat cjevovoda:",
+    "complete": "✓ Dovršeno",
+    "failed": "✗ Neuspjelo",
+    "error": "Greška:",
+    "dismiss": "Odbaci",
+    "refresh": "↻ Osvježi"
+  },
+  "niche": {
+    "badge": "🤖 Aktivacija AI tima",
+    "settingUp": "Postavljanje tvog AI tima za",
+    "configuring": "Konfiguriramo specijalizirane AI agente — istraživanje, pisanje, SEO, društvene mreže, e-poštu i prodaju — sve prilagođeno za",
+    "nicheLabel": "nišu.",
+    "progressLabel": "Istraživanje tržišta → Planiranje sadržaja → Aktivacija agenata → Spremno za objavu",
+    "demoMode": "⚠️ Baza podataka nije povezana — radi u demo načinu s agentima u memoriji.",
+    "viewDashboard": "Pogledaj nadzornu ploču AI agenata →",
+    "articlesPublished": "Članak",
+    "articlesPublished_plural": "Članaka",
+    "viewLibrary": "Objavljeno — Pogledaj biblioteku →",
+    "backHome": "← Natrag na početnu",
+    "whatNext": "Što se događa dalje?",
+    "marketResearch": "Istraživanje tržišta",
+    "marketResearchDesc": "Naš SEO agent za istraživanje analizira {{niche}} tržište — pronalazi visokovrijedne ključne riječi, praznine u sadržaju i strategije konkurencije.",
+    "contentCreation": "Stvaranje sadržaja",
+    "contentCreationDesc": "AI pisac i strateg sadržaja planiraju i proizvode SEO-optimizirane članke, vodiče i recenzije proizvoda za {{niche}}.",
+    "monetization": "Monetizacija",
+    "monetizationDesc": "Affiliate, oglasi, digitalni proizvodi — mehanizam monetizacije automatski aktivira više kanala prihoda."
+  },
+  "articles": {
+    "backTo": "← Natrag na",
+    "title": "Članci",
+    "subtitle": "AI-generirani, SEO-optimizirani sadržaj za",
+    "nicheLabel": "nišu.",
+    "published": "članak objavljen",
+    "published_plural": "članaka objavljeno",
+    "noArticles": "Još nema članaka",
+    "noArticlesDesc": "Pokreni sadržajni cjevovod za generiranje prvog AI članka za {{niche}} nišu.",
+    "runPipeline": "Pokreni sadržajni cjevovod →",
+    "read": "Pročitaj →",
+    "draft": "Skica",
+    "minRead": "min čitanja"
+  },
+  "article": {
+    "articles": "Članci",
+    "aiAuthor": "AI pisac agent",
+    "published": "Objavljeno",
+    "created": "Kreirano",
+    "minRead": "min čitanja",
+    "words": "riječi",
+    "disclaimer": "Ovaj članak generirao je naš AI pisac agent. Sadržaj može sadržavati affiliate poveznice. Trudimo se biti točni, ali preporučujemo da samostalno provjerite važne informacije.",
+    "disclaimerLabel": "Napomena:",
+    "backToArticles": "← Natrag na članke",
+    "notFound": "Članak nije pronađen"
+  },
+  "gallery": {
+    "title": "🎨 Galerija agentskih rezultata",
+    "subtitle": "Sve što su tvoji AI agenti proizveli — članci, aktivnosti i budući mediji.",
+    "tabs": {
+      "all": "Sve",
+      "articles": "📝 Članci",
+      "images": "🖼️ Slike",
+      "socialPosts": "📱 Društvene objave",
+      "messages": "💬 Poruke agenata"
+    },
+    "empty": "Još nema sadržaja. Pokreni sadržajni cjevovod za generiranje rezultata.",
+    "activityFeed": "📋 Pregled aktivnosti agenata",
+    "activityFeedDesc": "Dnevnik akcija i događaja agenata u stvarnom vremenu.",
+    "articleCard": {
+      "byAgent": "od",
+      "words": "riječi",
+      "viewArticle": "Pogledaj članak →"
+    },
+    "messageCard": {
+      "actionLabel": "Akcija:"
+    }
+  },
+  "api": {
+    "runTitle": "Agent Run API",
+    "runDesc": "Koristi serverske funkcije za izvršavanje zadataka AI agenata i sadržajnih cjevovoda.",
+    "actionTitle": "Agent Action API",
+    "actionDesc": "Koristi logAgentAction serversku funkciju za bilježenje aktivnosti agenata.",
+    "requestPayload": "Podaci zahtjeva",
+    "response": "Odgovor",
+    "executeTask": "POST /api/run — Izvrši zadatak",
+    "executeTaskDesc": "Poziva runTaskAction serversku funkciju. Vraća rezultat izvršenja zadatka s informacijama o agentu i LLM izlazu.",
+    "pipelineEndpoint": "POST /api/run/pipeline — Sadržajni cjevovod",
+    "pipelineEndpointDesc": "Poziva runPipelineAction serversku funkciju. Ulančava SEO → Strateg → Pisac zadatke za danu nišu.",
+    "pipelineResponseLabel": "Odgovor cjevovoda",
+    "actionLoggedTo": "Akcije se bilježe u agent_activity_log tablicu."
+  },
+  "common": {
+    "loading": "Učitavanje...",
+    "error": "Nešto je pošlo po zlu",
+    "notFound": "Stranica nije pronađena",
+    "back": "← Natrag"
+  },
+  "language": {
+    "switcher": "Jezik",
+    "en": "Engleski",
+    "hr": "Hrvatski"
+  }
+}

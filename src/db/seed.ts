@@ -69,8 +69,18 @@ export const runMigrations = createServerFn().handler(async () => {
   await sql.unsafe(`ALTER TABLE niche_profiles ADD CONSTRAINT IF NOT EXISTS niche_profiles_slug_unique UNIQUE (slug)`);
   await sql.unsafe(`ALTER TABLE agent_tasks ADD COLUMN IF NOT EXISTS niche_id UUID REFERENCES niche_profiles(id)`);
 
-  // Articles table: ensure it exists (IF NOT EXISTS in schema.sql handles this,
-  // but also run as a safe additive migration in case schema was deployed earlier)
+  // media_assets table: ensure it exists as a safe additive migration
+  await sql.unsafe(`CREATE TABLE IF NOT EXISTS media_assets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    agent_id UUID REFERENCES ai_agents(id),
+    niche_id UUID REFERENCES niche_profiles(id),
+    type TEXT NOT NULL CHECK (type IN ('image', 'video', 'social_post', 'message', 'article')),
+    title TEXT,
+    content TEXT,
+    url TEXT,
+    metadata JSONB,
+    created_at TIMESTAMPTZ DEFAULT now()
+  )`);
 
   return { success: true, message: "Migrations applied" };
 });
@@ -115,6 +125,19 @@ export const initializeDatabase = createServerFn().handler(async () => {
   await sql.unsafe(`ALTER TABLE niche_profiles ADD COLUMN IF NOT EXISTS slug TEXT`);
   await sql.unsafe(`DO $$ BEGIN ALTER TABLE niche_profiles ADD CONSTRAINT niche_profiles_slug_unique UNIQUE (slug); EXCEPTION WHEN duplicate_table THEN NULL; END $$`);
   await sql.unsafe(`ALTER TABLE agent_tasks ADD COLUMN IF NOT EXISTS niche_id UUID REFERENCES niche_profiles(id)`);
+
+  // media_assets table
+  await sql.unsafe(`CREATE TABLE IF NOT EXISTS media_assets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    agent_id UUID REFERENCES ai_agents(id),
+    niche_id UUID REFERENCES niche_profiles(id),
+    type TEXT NOT NULL CHECK (type IN ('image', 'video', 'social_post', 'message', 'article')),
+    title TEXT,
+    content TEXT,
+    url TEXT,
+    metadata JSONB,
+    created_at TIMESTAMPTZ DEFAULT now()
+  )`);
 
   // Seed agents
   const existing = await sql`SELECT count(*) as cnt FROM ai_agents`;

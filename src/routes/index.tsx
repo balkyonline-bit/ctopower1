@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { readFile } from "node:fs/promises";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getSql } from "~/db";
 
 const getBusinessName = createServerFn({ method: "GET" }).handler(async () => {
@@ -108,6 +109,7 @@ export const Route = createFileRoute("/")({
 
 function NicheForm({ niche, setNiche }: { niche: string; setNiche: (v: string) => void }) {
   const [submitting, setSubmitting] = useState(false);
+  const { t } = useTranslation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,7 +135,7 @@ function NicheForm({ niche, setNiche }: { niche: string; setNiche: (v: string) =
           type="text"
           value={niche}
           onChange={(e) => setNiche(e.target.value)}
-          placeholder="e.g. solar panels, vegan recipes, crypto trading..."
+          placeholder={t("home.placeholder")}
           className="glow-input flex-1 rounded-xl border border-gray-700 bg-gray-900/60 px-5 py-3.5 text-sm text-gray-100 placeholder-gray-500 backdrop-blur-sm transition-all duration-300 focus:border-indigo-500/50 focus:outline-none"
           disabled={submitting}
         />
@@ -142,7 +144,7 @@ function NicheForm({ niche, setNiche }: { niche: string; setNiche: (v: string) =
           disabled={submitting}
           className="whitespace-nowrap rounded-xl bg-gradient-to-r from-indigo-500 to-cyan-500 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition-all duration-300 hover:shadow-indigo-500/40 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {submitting ? "Creating..." : "Get Started →"}
+          {submitting ? t("home.creating") : t("home.cta")}
         </button>
       </div>
     </form>
@@ -152,6 +154,7 @@ function NicheForm({ niche, setNiche }: { niche: string; setNiche: (v: string) =
 function Home() {
   const businessName = Route.useLoaderData();
   const [niche, setNiche] = useState("");
+  const { t } = useTranslation();
 
   return (
     <div className="flex flex-col">
@@ -166,22 +169,20 @@ function Home() {
         <div className="mx-auto max-w-3xl text-center">
           {/* Badge */}
           <span className="inline-block rounded-full border border-indigo-500/30 bg-indigo-500/10 px-4 py-1.5 text-sm font-medium text-indigo-300">
-            🤖 AI-Powered Content Platform
+            {t("home.badge")}
           </span>
 
           {/* H1 */}
           <h1 className="mt-8 text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
-            <span className="block">Enter Any Niche.</span>
+            <span className="block">{t("home.heroLine1")}</span>
             <span className="mt-2 block bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
-              Get an AI Marketing Empire.
+              {t("home.heroLine2")}
             </span>
           </h1>
 
           {/* Subtitle */}
           <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed text-gray-400 sm:text-lg">
-            Type any industry or topic — {businessName} instantly builds your
-            complete AI marketing department. Research, writing, SEO, design,
-            video, social media, email, and sales — all autonomous, all for you.
+            {t("home.subtitle", { businessName })}
           </p>
 
           {/* Niche input */}
@@ -195,7 +196,7 @@ function Home() {
               href="/tech"
               className="text-sm text-indigo-400/80 transition hover:text-indigo-300"
             >
-              See live example: AI Tools &amp; Automation niche →
+              {t("home.liveDemo")}
             </a>
           </p>
         </div>
@@ -208,18 +209,18 @@ function Home() {
             {[
               {
                 emoji: "🧠",
-                title: "Your AI Team",
-                desc: "Research, Writing, SEO, Design, Marketing",
+                title: t("home.stats.aiTeam"),
+                desc: t("home.stats.aiTeamDesc"),
               },
               {
                 emoji: "💰",
-                title: "Revenue Channels",
-                desc: "Affiliate, Ads, Products, Subscriptions",
+                title: t("home.stats.revenue"),
+                desc: t("home.stats.revenueDesc"),
               },
               {
                 emoji: "🚀",
-                title: "Live Demo",
-                desc: "AI Tools niche, 1 article live →",
+                title: t("home.stats.liveDemo"),
+                desc: t("home.stats.liveDemoDesc"),
                 href: "/tech",
               },
             ].map((card) => (
@@ -251,30 +252,30 @@ function Home() {
       <section className="border-t border-gray-800/50 px-6 py-20 sm:py-28">
         <div className="mx-auto max-w-5xl">
           <h2 className="text-center text-3xl font-bold tracking-tight sm:text-4xl">
-            How It Works
+            {t("home.howItWorks.title")}
           </h2>
           <p className="mt-3 text-center text-gray-400">
-            From niche to revenue — fully autonomous.
+            {t("home.howItWorks.subtitle")}
           </p>
 
           <div className="mt-14 grid gap-8 sm:grid-cols-3">
             {[
               {
                 step: "01",
-                title: "Enter Your Niche",
-                desc: "Type any industry or topic you want to build a content business around. One field, infinite possibilities.",
+                title: t("home.howItWorks.step1Title"),
+                desc: t("home.howItWorks.step1Desc"),
                 emoji: "🎯",
               },
               {
                 step: "02",
-                title: "AI Team Activates",
-                desc: "Specialized agents research your market, strategize content, write articles, design visuals, and build products.",
+                title: t("home.howItWorks.step2Title"),
+                desc: t("home.howItWorks.step2Desc"),
                 emoji: "🤖",
               },
               {
                 step: "03",
-                title: "Revenue Flows",
-                desc: "Content publishes automatically. Traffic grows. Money comes in through affiliate, ads, products, and subscriptions.",
+                title: t("home.howItWorks.step3Title"),
+                desc: t("home.howItWorks.step3Desc"),
                 emoji: "💸",
               },
             ].map((item) => (
@@ -300,10 +301,10 @@ function Home() {
       <section className="border-t border-gray-800/50 px-6 py-20 sm:py-28">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Ready to build your AI marketing empire?
+            {t("home.ctaSection.title")}
           </h2>
           <p className="mt-4 text-gray-400">
-            Enter your niche below and let the AI team get to work.
+            {t("home.ctaSection.subtitle")}
           </p>
 
           <div className="mt-8">

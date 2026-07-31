@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "~/db";
+import { useTranslation } from "react-i18next";
 
 // ── Server functions ──
 
@@ -99,6 +100,7 @@ function readingTime(wordCount: number): string {
 
 function NicheArticlesPage() {
   const { slug, profile, articles } = Route.useLoaderData();
+  const { t } = useTranslation();
 
   const displayName = profile
     ? profile.niche_name
@@ -121,17 +123,18 @@ function NicheArticlesPage() {
             href={`/niche/${slug}`}
             className="mb-4 inline-flex items-center gap-1 text-sm text-indigo-400 hover:text-indigo-300"
           >
-            ← Back to {displayName}
+            {t("articles.backTo")} {displayName}
           </a>
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
-            {displayName} Articles
+            {displayName} {t("articles.title")}
           </h1>
           <p className="mt-3 text-lg text-gray-400">
-            AI-generated, SEO-optimized content for the{" "}
-            <strong className="text-gray-200">{displayName}</strong> niche.
+            {t("articles.subtitle")}{" "}
+            <strong className="text-gray-200">{displayName}</strong>{" "}
+            {t("articles.nicheLabel")}
           </p>
           <p className="mt-1 text-sm text-gray-500">
-            {publishedArticles.length} article{publishedArticles.length !== 1 ? "s" : ""} published
+            {publishedArticles.length} {publishedArticles.length !== 1 ? t("articles.published_plural") : t("articles.published")}
           </p>
         </div>
       </section>
@@ -144,16 +147,15 @@ function NicheArticlesPage() {
               <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-indigo-500/10 text-4xl">
                 📝
               </div>
-              <h2 className="text-xl font-semibold">No articles yet</h2>
+              <h2 className="text-xl font-semibold">{t("articles.noArticles")}</h2>
               <p className="mt-2 text-gray-400">
-                Run the content pipeline to generate your first AI-written article
-                for the {displayName} niche.
+                {t("articles.noArticlesDesc", { niche: displayName })}
               </p>
               <a
                 href={`/niche/${slug}`}
                 className="mt-6 inline-block rounded-xl bg-gradient-to-r from-indigo-500 to-cyan-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition-all duration-300 hover:shadow-indigo-500/40 hover:scale-[1.02]"
               >
-                Run Content Pipeline →
+                {t("articles.runPipeline")}
               </a>
             </div>
           ) : (
@@ -164,11 +166,8 @@ function NicheArticlesPage() {
                   href={`/niche/${slug}/articles/${article.slug}`}
                   className="group flex flex-col overflow-hidden rounded-2xl border border-gray-800 bg-gray-900/60 transition hover:border-gray-600 hover:bg-gray-900"
                 >
-                  {/* Card top accent */}
                   <div className="h-1.5 bg-gradient-to-r from-indigo-500 to-cyan-500" />
-
                   <div className="flex flex-1 flex-col p-6">
-                    {/* Keywords */}
                     {article.seo_keywords.length > 0 && (
                       <div className="mb-3 flex flex-wrap gap-1.5">
                         {article.seo_keywords.slice(0, 3).map((kw) => (
@@ -181,26 +180,23 @@ function NicheArticlesPage() {
                         ))}
                       </div>
                     )}
-
                     <h2 className="text-lg font-semibold leading-snug text-white group-hover:text-indigo-300 transition-colors">
                       {article.title}
                     </h2>
-
                     {article.excerpt && (
                       <p className="mt-2 flex-1 text-sm leading-relaxed text-gray-400 line-clamp-3">
                         {article.excerpt}
                       </p>
                     )}
-
                     <div className="mt-4 flex items-center justify-between">
                       <span className="text-xs text-gray-500">
                         {article.published_at
                           ? formatDate(article.published_at)
-                          : "Draft"}{" "}
+                          : t("articles.draft")}{" "}
                         · {readingTime(article.word_count)}
                       </span>
                       <span className="text-sm font-medium text-indigo-400 group-hover:text-indigo-300">
-                        Read →
+                        {t("articles.read")}
                       </span>
                     </div>
                   </div>

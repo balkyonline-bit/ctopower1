@@ -5,14 +5,11 @@ import {
   createRootRoute,
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
+import "~/i18n/index";
+import { SUPPORTED_LANGUAGES, LANGUAGE_LABELS, LANG_STORAGE_KEY, type SupportedLanguage } from "~/i18n/index";
 
 import appCss from "~/styles/app.css?url";
-
-const NAV_LINKS = [
-  { name: "Platform", href: "#platform" },
-  { name: "Demo", href: "/tech" },
-  { name: "Pricing", href: "#pricing" },
-] as const;
 
 export const Route = createRootRoute({
   head: () => ({
@@ -28,8 +25,10 @@ export const Route = createRootRoute({
 });
 
 function RootComponent() {
+  const { i18n } = useTranslation();
+
   return (
-    <RootDocument>
+    <RootDocument lang={i18n.language}>
       <NavBar />
       <Outlet />
       <Footer />
@@ -37,9 +36,9 @@ function RootComponent() {
   );
 }
 
-function RootDocument({ children }: { children: ReactNode }) {
+function RootDocument({ children, lang }: { children: ReactNode; lang: string }) {
   return (
-    <html lang="en" className="dark">
+    <html lang={lang} className="dark">
       <head>
         <HeadContent />
       </head>
@@ -52,6 +51,19 @@ function RootDocument({ children }: { children: ReactNode }) {
 }
 
 function NavBar() {
+  const { t, i18n } = useTranslation();
+
+  const NAV_LINKS = [
+    { name: t("nav.dashboard"), href: "/dashboard" },
+    { name: t("nav.gallery"), href: "/gallery" },
+    { name: t("nav.demo"), href: "/tech" },
+  ] as const;
+
+  const handleLanguageSwitch = (lang: SupportedLanguage) => {
+    i18n.changeLanguage(lang);
+    localStorage.setItem(LANG_STORAGE_KEY, lang);
+  };
+
   return (
     <nav className="sticky top-0 z-50 border-b border-gray-800 bg-gray-950/80 backdrop-blur-md">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
@@ -72,11 +84,28 @@ function NavBar() {
               {link.name}
             </a>
           ))}
+          {/* Language Switcher */}
+          <div className="flex items-center gap-1 border-l border-gray-700 pl-4 ml-2">
+            {SUPPORTED_LANGUAGES.map((lang) => (
+              <button
+                key={lang}
+                onClick={() => handleLanguageSwitch(lang)}
+                className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                  i18n.language === lang
+                    ? "bg-indigo-500/20 text-indigo-300 font-medium"
+                    : "text-gray-500 hover:text-gray-300"
+                }`}
+                title={LANGUAGE_LABELS[lang]}
+              >
+                {LANGUAGE_LABELS[lang]}
+              </button>
+            ))}
+          </div>
           <a
             href="/"
             className="rounded-lg bg-gradient-to-r from-indigo-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-white transition hover:shadow-lg hover:shadow-indigo-500/25"
           >
-            Get Started
+            {t("nav.getStarted")}
           </a>
         </div>
         {/* Mobile menu */}
@@ -109,12 +138,27 @@ function NavBar() {
                   </a>
                 </li>
               ))}
+              <li className="border-t border-gray-800 mt-1 pt-1">
+                {SUPPORTED_LANGUAGES.map((lang) => (
+                  <button
+                    key={lang}
+                    onClick={() => handleLanguageSwitch(lang)}
+                    className={`block w-full text-left px-4 py-2 text-xs ${
+                      i18n.language === lang
+                        ? "bg-indigo-500/20 text-indigo-300"
+                        : "text-gray-400 hover:bg-gray-800 hover:text-gray-200"
+                    }`}
+                  >
+                    {LANGUAGE_LABELS[lang]}
+                  </button>
+                ))}
+              </li>
               <li>
                 <a
                   href="/"
                   className="block px-4 py-2 text-sm font-semibold text-indigo-400 hover:bg-gray-800"
                 >
-                  Get Started
+                  {t("nav.getStarted")}
                 </a>
               </li>
             </ul>
@@ -126,13 +170,14 @@ function NavBar() {
 }
 
 function Footer() {
+  const { t } = useTranslation();
+
   return (
     <footer className="border-t border-gray-800 bg-gray-950 py-8">
       <div className="mx-auto flex max-w-7xl flex-col items-center gap-4 px-6 text-center">
-        <p className="text-sm text-gray-500">Powered by EmpireAI</p>
+        <p className="text-sm text-gray-500">{t("footer.poweredBy")}</p>
         <p className="text-xs text-gray-600">
-          AI-Powered Content Empire &mdash; autonomous niche content sites run by
-          specialized AI agent teams.
+          {t("footer.tagline")}
         </p>
       </div>
     </footer>

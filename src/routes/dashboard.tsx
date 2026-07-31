@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "~/db";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 // ── Server functions ──
 
@@ -130,6 +131,137 @@ const runPipelineAction = createServerFn().handler(async (nicheSlug: string) => 
   return runContentPipeline(nicheSlug);
 });
 
+// ── Activity log ──
+
+const fetchActivityLog = createServerFn().handler(async () => {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT 
+      al.id, al.action, al.details, al.created_at,
+      a.name as agent_name, a.role as agent_role
+    FROM agent_activity_log al
+    LEFT JOIN ai_agents a ON al.agent_id = a.id
+    ORDER BY al.created_at DESC
+    LIMIT 20
+  `;
+  return rows.map((r: Record<string, unknown>) => ({
+    id: r.id as string,
+    action: r.action as string,
+    details: r.details as unknown,
+    agent_name: (r.agent_name as string) ?? "System",
+    agent_role: (r.agent_role as string) ?? "",
+    created_at: String(r.created_at),
+  }));
+});
+
+// ── Agent performance stats ──
+
+const fetchAgentStats = createServerFn().handler(async () => {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT 
+      a.id, a.name, a.role, a.tasks_completed, a.performance_score, a.status, a.last_run,
+      (SELECT count(*) FROM agent_tasks WHERE agent_id = a.id) as total_tasks,
+      (SELECT count(*) FROM agent_tasks WHERE agent_id = a.id AND status = 'pending') as pending_tasks,
+      (SELECT count(*) FROM agent_tasks WHERE agent_id = a.id AND status = 'completed') as completed_tasks,
+      (SELECT count(*) FROM agent_tasks WHERE agent_id = a.id AND status = 'failed') as failed_tasks
+    FROM ai_agents a
+    ORDER BY a.performance_score DESC
+  `;
+  return rows.map((r: Record<string, unknown>) => ({
+    id: r.id as string,
+    name: r.name as string,
+    role: r.role as string,
+    tasks_completed: Number(r.tasks_completed),
+    performance_score: Number(r.performance_score),
+    status: r.status as string,
+    last_run: r.last_run ? String(r.last_run) : null,
+    total_tasks: Number(r.total_tasks),
+    pending_tasks: Number(r.pending_tasks),
+    completed_tasks: Number(r.completed_tasks),
+    failed_tasks: Number(r.failed_tasks),
+  }));
+});
+
+// ── Bulk operations ──
+
+const runAllPendingForNiche = createServerFn().handler(async (nicheSlug: string) => {
+  const sql = getSql();
+  
+  const nicheRows = await sql`
+    SELECT id FROM niche_profiles WHERE slug = ${nicheSlug} LIMIT 1
+  `;
+  if (nicheRows.length === 0) {
+    throw new Error(`Niche not found: ${nicheSlug}`);
+  }
+  const nicheId = (nicheRows[0] as { id: string }).id;
+
+  const taskRows = await sql`
+    SELECT id FROM agent_tasks WHERE niche_id = ${nicheId} AND status = 'pending'
+    ORDER BY priority DESC, created_at ASC
+  `;
+
+  const { executeTask } = await import("~/services/agent-executor");
+  const results: Array<{ taskId: string; success: boolean; summary: string }> = [];
+
+  for (const row of taskRows) {
+    const taskId = (row as { id: string }).id;
+    try {
+      const result = await executeTask(taskId);
+      results.push({
+        taskId,
+        success: result.success,
+        summary: result.success
+          ? `Completed by ${result.agentName}`
+          : `Failed: ${result.error ?? "Unknown error"}`,
+      });
+    } catch (err) {
+      results.push({
+        taskId,
+        success: false,
+        summary: err instanceof Error ? err.message : "Unknown error",
+      });
+    }
+  }
+
+  return {
+    nicheSlug,
+    tasksRun: results.length,
+    succeeded: results.filter((r) => r.success).length,
+    failed: results.filter((r) => !r.success).length,
+    results,
+  };
+});
+
+// ── Dashboard summary (single call) ──
+
+const fetchDashboardSummary = createServerFn().handler(async () => {
+  const sql = getSql();
+  
+  const [agentCount, pendingCount, completedCount, inProgressCount, failedCount, nicheCount] = await Promise.all([
+    sql`SELECT count(*) as cnt FROM ai_agents`,
+    sql`SELECT count(*) as cnt FROM agent_tasks WHERE status = 'pending'`,
+    sql`SELECT count(*) as cnt FROM agent_tasks WHERE status = 'completed'`,
+    sql`SELECT count(*) as cnt FROM agent_tasks WHERE status = 'in_progress'`,
+    sql`SELECT count(*) as cnt FROM agent_tasks WHERE status = 'failed'`,
+    sql`SELECT count(*) as cnt FROM niche_profiles`,
+  ]);
+
+  const getCnt = (rows: Array<{ cnt: number }>) => Number(rows[0].cnt);
+
+  return {
+    agents: getCnt(agentCount as Array<{ cnt: number }>),
+    tasks: {
+      pending: getCnt(pendingCount as Array<{ cnt: number }>),
+      completed: getCnt(completedCount as Array<{ cnt: number }>),
+      in_progress: getCnt(inProgressCount as Array<{ cnt: number }>),
+      failed: getCnt(failedCount as Array<{ cnt: number }>),
+      total: getCnt(pendingCount as Array<{ cnt: number }>) + getCnt(completedCount as Array<{ cnt: number }>) + getCnt(inProgressCount as Array<{ cnt: number }>) + getCnt(failedCount as Array<{ cnt: number }>),
+    },
+    niches: getCnt(nicheCount as Array<{ cnt: number }>),
+  };
+});
+
 // ── Task management ──
 
 const completeTask = createServerFn().handler(async (taskId: string) => {
@@ -241,6 +373,7 @@ function Spinner() {
 
 function ResultDisplay({ result }: { result: unknown }) {
   const [expanded, setExpanded] = useState(false);
+  const { t } = useTranslation();
 
   if (!result) return null;
 
@@ -282,7 +415,7 @@ function ResultDisplay({ result }: { result: unknown }) {
         onClick={() => setExpanded(!expanded)}
         className="text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1"
       >
-        {expanded ? "▼ Hide" : "▶ Show"} Result
+        {expanded ? t("dashboard.hideResult") : t("dashboard.showResult")}
       </button>
       {expanded && (
         <div className="mt-2 rounded-lg bg-gray-900/80 border border-gray-700/50 p-3 max-h-96 overflow-auto">
@@ -304,6 +437,7 @@ function CreateTaskModal({ agents, onClose, onCreated }: { agents: Array<{ id: s
   const [description, setDescription] = useState("");
   const [agentId, setAgentId] = useState(agents[0]?.id ?? "");
   const [submitting, setSubmitting] = useState(false);
+  const { t } = useTranslation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -324,33 +458,33 @@ function CreateTaskModal({ agents, onClose, onCreated }: { agents: Array<{ id: s
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="glass-card mx-4 w-full max-w-md rounded-2xl p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-white">Create Task</h3>
+          <h3 className="text-lg font-semibold text-white">{t("dashboard.createTaskTitle")}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-white text-xl">&times;</button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Title</label>
+            <label className="block text-sm text-gray-400 mb-1">{t("dashboard.taskTitle")}</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Task title..."
+              placeholder={t("dashboard.taskTitlePlaceholder")}
               className="w-full rounded-lg border border-gray-700 bg-gray-900/60 px-4 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:border-indigo-500/50 focus:outline-none"
               required
             />
           </div>
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Description</label>
+            <label className="block text-sm text-gray-400 mb-1">{t("dashboard.taskDescription")}</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Task description..."
+              placeholder={t("dashboard.taskDescPlaceholder")}
               rows={3}
               className="w-full rounded-lg border border-gray-700 bg-gray-900/60 px-4 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:border-indigo-500/50 focus:outline-none resize-none"
             />
           </div>
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Assign to Agent</label>
+            <label className="block text-sm text-gray-400 mb-1">{t("dashboard.assignToAgent")}</label>
             <select
               value={agentId}
               onChange={(e) => setAgentId(e.target.value)}
@@ -366,7 +500,7 @@ function CreateTaskModal({ agents, onClose, onCreated }: { agents: Array<{ id: s
             disabled={submitting || !title.trim()}
             className="w-full rounded-xl bg-gradient-to-r from-indigo-500 to-cyan-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition-all duration-300 hover:shadow-indigo-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {submitting ? "Creating..." : "Create Task"}
+            {submitting ? t("dashboard.creatingTask") : t("dashboard.createTaskBtn")}
           </button>
         </form>
       </div>
@@ -376,6 +510,7 @@ function CreateTaskModal({ agents, onClose, onCreated }: { agents: Array<{ id: s
 
 function PipelineModal({ niches, onClose, onStarted }: { niches: Array<{ id: string; niche_name: string; slug: string }>; onClose: () => void; onStarted: (slug: string) => void }) {
   const [selected, setSelected] = useState(niches[0]?.slug ?? "");
+  const { t } = useTranslation();
 
   const handleStart = () => {
     if (!selected) return;
@@ -387,23 +522,23 @@ function PipelineModal({ niches, onClose, onStarted }: { niches: Array<{ id: str
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="glass-card mx-4 w-full max-w-md rounded-2xl p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-white">Run Content Pipeline</h3>
+          <h3 className="text-lg font-semibold text-white">{t("dashboard.pipelineModalTitle")}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-white text-xl">&times;</button>
         </div>
         <p className="text-sm text-gray-400 mb-4">
-          This will chain 3 agents: SEO Research → Content Strategy → AI Writer for the selected niche.
+          {t("dashboard.pipelineModalDesc")}
         </p>
         {niches.length === 0 ? (
           <div className="text-center py-6">
-            <p className="text-sm text-gray-400">No niches found. Create one first.</p>
+            <p className="text-sm text-gray-400">{t("dashboard.noNichesFound")}</p>
             <a href="/" className="mt-2 inline-block text-sm text-indigo-400 hover:text-indigo-300">
-              ← Go to homepage
+              {t("dashboard.goHomepage")}
             </a>
           </div>
         ) : (
           <>
             <div className="mb-4">
-              <label className="block text-sm text-gray-400 mb-1">Select Niche</label>
+              <label className="block text-sm text-gray-400 mb-1">{t("dashboard.selectNiche")}</label>
               <select
                 value={selected}
                 onChange={(e) => setSelected(e.target.value)}
@@ -419,7 +554,7 @@ function PipelineModal({ niches, onClose, onStarted }: { niches: Array<{ id: str
               disabled={!selected}
               className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/25 transition-all duration-300 hover:shadow-cyan-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              🚀 Start Pipeline
+              {t("dashboard.startPipeline")}
             </button>
           </>
         )}
@@ -438,6 +573,7 @@ function Dashboard() {
   const [pipelineResult, setPipelineResult] = useState<Record<string, unknown> | null>(null);
   const [taskResults, setTaskResults] = useState<Record<string, unknown>>({});
   const [taskErrors, setTaskErrors] = useState<Record<string, string>>({});
+  const { t } = useTranslation();
 
   const handleRunTask = async (taskId: string) => {
     setRunningTasks((prev) => new Set(prev).add(taskId));
@@ -494,10 +630,10 @@ function Dashboard() {
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
               <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                🤖 AI Agent Dashboard
+                {t("dashboard.title")}
               </h1>
               <p className="mt-2 text-gray-400">
-                Monitor your AI marketing team, run tasks, and execute content pipelines.
+                {t("dashboard.subtitle")}
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -505,13 +641,13 @@ function Dashboard() {
                 onClick={() => setShowPipelineModal(true)}
                 className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-2.5 text-sm font-semibold text-cyan-300 transition-all duration-300 hover:bg-cyan-500/20 hover:border-cyan-500/50"
               >
-                🚀 Run Content Pipeline
+                {t("dashboard.runPipeline")}
               </button>
               <button
                 onClick={() => setShowCreateModal(true)}
                 className="rounded-xl bg-gradient-to-r from-indigo-500 to-cyan-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition-all duration-300 hover:shadow-indigo-500/40"
               >
-                + Create Task
+                {t("dashboard.createTask")}
               </button>
             </div>
           </div>
@@ -519,26 +655,26 @@ function Dashboard() {
           {/* Stats */}
           <div className="mt-8 grid gap-4 sm:grid-cols-4">
             <div className="glass-card rounded-xl p-5">
-              <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Agents</p>
+              <p className="text-xs font-medium uppercase tracking-wider text-gray-500">{t("dashboard.stats.agents")}</p>
               <p className="mt-1 text-3xl font-bold text-white">{agents.length}</p>
               <p className="mt-1 text-xs text-gray-400">
-                {agents.filter((a: Record<string, unknown>) => a.status === "active").length} active
+                {agents.filter((a: Record<string, unknown>) => a.status === "active").length} {t("dashboard.stats.active")}
               </p>
             </div>
             <div className="glass-card rounded-xl p-5">
-              <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Tasks Pending</p>
+              <p className="text-xs font-medium uppercase tracking-wider text-gray-500">{t("dashboard.stats.tasksPending")}</p>
               <p className="mt-1 text-3xl font-bold text-yellow-400">{tasks.pending}</p>
-              <p className="mt-1 text-xs text-gray-400">{tasks.completed} completed · {tasks.in_progress} in progress</p>
+              <p className="mt-1 text-xs text-gray-400">{tasks.completed} {t("dashboard.stats.completed")} · {tasks.in_progress} {t("dashboard.stats.inProgress")}</p>
             </div>
             <div className="glass-card rounded-xl p-5">
-              <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Niche Profiles</p>
+              <p className="text-xs font-medium uppercase tracking-wider text-gray-500">{t("dashboard.stats.nicheProfiles")}</p>
               <p className="mt-1 text-3xl font-bold text-cyan-400">{nicheCount}</p>
-              <p className="mt-1 text-xs text-gray-400">active niches</p>
+              <p className="mt-1 text-xs text-gray-400">{t("dashboard.stats.activeNiches")}</p>
             </div>
             <div className="glass-card rounded-xl p-5">
-              <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Total Tasks</p>
+              <p className="text-xs font-medium uppercase tracking-wider text-gray-500">{t("dashboard.stats.totalTasks")}</p>
               <p className="mt-1 text-3xl font-bold text-white">{tasks.pending + tasks.completed + tasks.in_progress}</p>
-              <p className="mt-1 text-xs text-gray-400">across all niches</p>
+              <p className="mt-1 text-xs text-gray-400">{t("dashboard.stats.acrossAllNiches")}</p>
             </div>
           </div>
         </div>
@@ -552,9 +688,9 @@ function Dashboard() {
               <div className="flex items-center gap-3">
                 <Spinner />
                 <div>
-                  <h3 className="font-semibold text-blue-300 text-sm">Content Pipeline Running...</h3>
+                  <h3 className="font-semibold text-blue-300 text-sm">{t("dashboard.pipelineRunning")}</h3>
                   <p className="text-xs text-gray-400 mt-0.5">
-                    Chaining SEO Research → Content Strategy → AI Writer. This may take a minute.
+                    {t("dashboard.pipelineRunningDesc")}
                   </p>
                 </div>
               </div>
@@ -569,18 +705,18 @@ function Dashboard() {
             <div className={`glass-card rounded-xl p-5 border ${pipelineResult.success ? "border-green-500/20" : "border-red-500/20"}`}>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold text-white text-sm">
-                  Pipeline Result: {pipelineResult.nicheName ? String(pipelineResult.nicheName) : ""}
+                  {t("dashboard.pipelineResult")} {pipelineResult.nicheName ? String(pipelineResult.nicheName) : ""}
                 </h3>
                 <span className={`rounded-full px-3 py-0.5 text-xs font-medium ${
                   pipelineResult.success
                     ? "bg-green-900/60 text-green-400 border border-green-500/30"
                     : "bg-red-900/60 text-red-400 border border-red-500/30"
                 }`}>
-                  {pipelineResult.success ? "✓ Complete" : "✗ Failed"}
+                  {pipelineResult.success ? t("dashboard.complete") : t("dashboard.failed")}
                 </span>
               </div>
               {pipelineResult.error && (
-                <p className="text-sm text-red-400 mb-3">Error: {String(pipelineResult.error)}</p>
+                <p className="text-sm text-red-400 mb-3">{t("dashboard.error")} {String(pipelineResult.error)}</p>
               )}
               {Array.isArray(pipelineResult.steps) && (
                 <div className="space-y-2">
@@ -599,7 +735,7 @@ function Dashboard() {
                 onClick={() => setPipelineResult(null)}
                 className="mt-3 text-xs text-gray-500 hover:text-gray-300 transition-colors"
               >
-                Dismiss
+                {t("dashboard.dismiss")}
               </button>
             </div>
           </div>
@@ -610,8 +746,8 @@ function Dashboard() {
       {niches.length > 0 && (
         <section className="border-b border-gray-800/50 px-6 py-12">
           <div className="mx-auto max-w-6xl">
-            <h2 className="text-xl font-bold tracking-tight">Recent Niches</h2>
-            <p className="mt-1 text-sm text-gray-400">Last {niches.length} niche profiles created.</p>
+            <h2 className="text-xl font-bold tracking-tight">{t("dashboard.recentNiches")}</h2>
+            <p className="mt-1 text-sm text-gray-400">{t("dashboard.recentNichesDesc", { count: niches.length })}</p>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {niches.map((niche: Record<string, unknown>) => (
@@ -626,11 +762,11 @@ function Dashboard() {
                       <p className="mt-0.5 text-xs text-gray-500">/{niche.slug as string}</p>
                     </div>
                     <span className="rounded-full bg-indigo-500/10 px-2.5 py-0.5 text-xs font-medium text-indigo-400">
-                      {niche.task_count as number} tasks
+                      {niche.task_count as number} {t("dashboard.tasks")}
                     </span>
                   </div>
                   <p className="mt-3 text-xs text-gray-500">
-                    Created {new Date(niche.created_at as string).toLocaleDateString()}
+                    {t("dashboard.created")} {new Date(niche.created_at as string).toLocaleDateString()}
                   </p>
                 </a>
               ))}
@@ -638,7 +774,7 @@ function Dashboard() {
 
             {nicheCount > 5 && (
               <p className="mt-4 text-center text-sm text-gray-500">
-                Showing 5 of {nicheCount} niches
+                {t("dashboard.showingOf", { shown: 5, total: nicheCount })}
               </p>
             )}
           </div>
@@ -650,29 +786,29 @@ function Dashboard() {
         <div className="mx-auto max-w-6xl">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold tracking-tight">Pending Tasks</h2>
-              <p className="mt-1 text-sm text-gray-400">Tasks waiting to be started. Click Run to execute with AI.</p>
+              <h2 className="text-xl font-bold tracking-tight">{t("dashboard.pendingTasks")}</h2>
+              <p className="mt-1 text-sm text-gray-400">{t("dashboard.pendingTasksDesc")}</p>
             </div>
             <button
               onClick={refresh}
               className="text-xs text-gray-500 hover:text-gray-300 transition-colors flex items-center gap-1"
             >
-              ↻ Refresh
+              {t("dashboard.refresh")}
             </button>
           </div>
 
           {pendingTasks.length === 0 ? (
             <div className="mt-6 glass-card rounded-xl p-8 text-center">
               <div className="text-4xl">📋</div>
-              <p className="mt-3 text-lg font-medium text-white">No pending tasks</p>
+              <p className="mt-3 text-lg font-medium text-white">{t("dashboard.noPendingTasks")}</p>
               <p className="mt-1 text-sm text-gray-400">
-                Create a niche from the homepage or use the Create Task button.
+                {t("dashboard.noPendingTasksDesc")}
               </p>
               <a
                 href="/"
                 className="mt-4 inline-block text-sm text-indigo-400 hover:text-indigo-300"
               >
-                ← Create a niche
+                {t("dashboard.createNiche")}
               </a>
             </div>
           ) : (
@@ -693,20 +829,18 @@ function Dashboard() {
                         )}
                         <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
                           <span className="inline-flex items-center gap-1">
-                            <span className="text-indigo-400">Agent:</span> {task.agent_name as string}
+                            <span className="text-indigo-400">{t("dashboard.agent")}</span> {task.agent_name as string}
                           </span>
                           <span>·</span>
                           <span>{new Date(task.created_at as string).toLocaleDateString()}</span>
                         </div>
 
-                        {/* Error display */}
                         {taskErr && (
                           <div className="mt-2 text-xs text-red-400 bg-red-900/20 rounded-lg p-2 border border-red-500/20">
-                            Error: {taskErr}
+                            {t("dashboard.error")} {taskErr}
                           </div>
                         )}
 
-                        {/* Result display */}
                         {taskResult && (
                           <div className="mt-2 text-xs text-green-400 bg-green-900/20 rounded-lg p-2 border border-green-500/20">
                             ✓ Task executed by {(taskResult as Record<string, unknown>).agentName as string || "agent"}
@@ -724,10 +858,10 @@ function Dashboard() {
                           {isRunning ? (
                             <>
                               <Spinner />
-                              Running
+                              {t("dashboard.running")}
                             </>
                           ) : (
-                            "▶ Run"
+                            t("dashboard.run")
                           )}
                         </button>
                       </div>
@@ -744,8 +878,8 @@ function Dashboard() {
       {completedTasks.length > 0 && (
         <section className="border-t border-gray-800/50 px-6 py-12">
           <div className="mx-auto max-w-6xl">
-            <h2 className="text-xl font-bold tracking-tight">Recently Completed</h2>
-            <p className="mt-1 text-sm text-gray-400">Latest completed tasks with AI-generated results.</p>
+            <h2 className="text-xl font-bold tracking-tight">{t("dashboard.recentlyCompleted")}</h2>
+            <p className="mt-1 text-sm text-gray-400">{t("dashboard.recentlyCompletedDesc")}</p>
 
             <div className="mt-6 space-y-3">
               {completedTasks.map((task: Record<string, unknown>) => {
@@ -762,10 +896,10 @@ function Dashboard() {
                         )}
                         <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
                           <span className="inline-flex items-center gap-1">
-                            <span className="text-indigo-400">Agent:</span> {task.agent_name as string}
+                            <span className="text-indigo-400">{t("dashboard.agent")}</span> {task.agent_name as string}
                           </span>
                           <span>·</span>
-                          <span>Completed {task.completed_at ? new Date(task.completed_at as string).toLocaleDateString() : "unknown"}</span>
+                          <span>{t("dashboard.completedOn")} {task.completed_at ? new Date(task.completed_at as string).toLocaleDateString() : "unknown"}</span>
                         </div>
                         <ResultDisplay result={liveResult?.result || task.result} />
                       </div>
@@ -782,8 +916,8 @@ function Dashboard() {
       {/* Agent List */}
       <section className="border-t border-gray-800/50 px-6 py-12">
         <div className="mx-auto max-w-6xl">
-          <h2 className="text-xl font-bold tracking-tight">AI Agent Team</h2>
-          <p className="mt-1 text-sm text-gray-400">Specialized agents ready to work on your niches.</p>
+          <h2 className="text-xl font-bold tracking-tight">{t("dashboard.aiAgentTeam")}</h2>
+          <p className="mt-1 text-sm text-gray-400">{t("dashboard.aiAgentTeamDesc")}</p>
 
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {agents.map((agent: Record<string, unknown>) => (
@@ -797,8 +931,8 @@ function Dashboard() {
                 </div>
                 <p className="mt-3 text-xs leading-relaxed text-gray-400 line-clamp-2">{agent.description as string}</p>
                 <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
-                  <span>{agent.tasks_completed as number} tasks done</span>
-                  <span>Score: {((agent.performance_score as number) * 100).toFixed(0)}%</span>
+                  <span>{agent.tasks_completed as number} {t("dashboard.tasksDone")}</span>
+                  <span>{t("dashboard.score")} {((agent.performance_score as number) * 100).toFixed(0)}%</span>
                 </div>
               </div>
             ))}
