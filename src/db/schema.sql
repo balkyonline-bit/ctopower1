@@ -79,3 +79,49 @@ CREATE TABLE IF NOT EXISTS media_assets (
   metadata JSONB,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Monetization Engine: Affiliate Programs
+CREATE TABLE IF NOT EXISTS affiliate_programs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  network TEXT,
+  commission_rate NUMERIC(5,2),
+  notes TEXT,
+  status TEXT DEFAULT 'active',
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Monetization Engine: Affiliate Links
+CREATE TABLE IF NOT EXISTS affiliate_links (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  label TEXT NOT NULL,
+  url TEXT NOT NULL,
+  program_id UUID REFERENCES affiliate_programs(id),
+  niche_id UUID REFERENCES niche_profiles(id),
+  tracking_code TEXT,
+  status TEXT DEFAULT 'active',
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Monetization Engine: Ad Slots (AdSense / direct ad placements)
+CREATE TABLE IF NOT EXISTS ad_slots (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  page_location TEXT,
+  format TEXT,
+  status TEXT DEFAULT 'active',
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Monetization Engine: Revenue Log
+CREATE TABLE IF NOT EXISTS revenue_entries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  source TEXT NOT NULL CHECK (source IN ('affiliate', 'ads', 'product', 'leadgen')),
+  amount NUMERIC(10,2) NOT NULL,
+  currency TEXT DEFAULT 'USD',
+  description TEXT,
+  entry_date DATE DEFAULT CURRENT_DATE,
+  niche_id UUID REFERENCES niche_profiles(id),
+  link_id UUID REFERENCES affiliate_links(id),
+  created_at TIMESTAMPTZ DEFAULT now()
+);

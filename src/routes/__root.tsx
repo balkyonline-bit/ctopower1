@@ -56,6 +56,7 @@ function NavBar() {
   const NAV_LINKS = [
     { name: t("nav.dashboard"), href: "/dashboard" },
     { name: t("nav.gallery"), href: "/gallery" },
+    { name: t("nav.monetization"), href: "/monetization" },
     { name: t("nav.demo"), href: "/tech" },
   ] as const;
 
