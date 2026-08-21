@@ -25,6 +25,47 @@ await client.query(`ALTER TABLE niche_profiles ADD COLUMN IF NOT EXISTS slug TEX
 await client.query(`ALTER TABLE agent_tasks ADD COLUMN IF NOT EXISTS niche_id UUID`);
 await client.query(`ALTER TABLE agent_tasks ADD COLUMN IF NOT EXISTS status TEXT`);
 
+// Monetization Engine tables (also in src/db/schema.sql; duplicated here so the
+// pg wire-protocol runner creates them even if schema.sql application ever changes)
+await client.query(`CREATE TABLE IF NOT EXISTS affiliate_programs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  network TEXT,
+  commission_rate NUMERIC(5,2),
+  notes TEXT,
+  status TEXT DEFAULT 'active',
+  created_at TIMESTAMPTZ DEFAULT now()
+)`);
+await client.query(`CREATE TABLE IF NOT EXISTS affiliate_links (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  label TEXT NOT NULL,
+  url TEXT NOT NULL,
+  program_id UUID REFERENCES affiliate_programs(id),
+  niche_id UUID REFERENCES niche_profiles(id),
+  tracking_code TEXT,
+  status TEXT DEFAULT 'active',
+  created_at TIMESTAMPTZ DEFAULT now()
+)`);
+await client.query(`CREATE TABLE IF NOT EXISTS ad_slots (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  page_location TEXT,
+  format TEXT,
+  status TEXT DEFAULT 'active',
+  created_at TIMESTAMPTZ DEFAULT now()
+)`);
+await client.query(`CREATE TABLE IF NOT EXISTS revenue_entries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  source TEXT NOT NULL CHECK (source IN ('affiliate', 'ads', 'product', 'leadgen')),
+  amount NUMERIC(10,2) NOT NULL,
+  currency TEXT DEFAULT 'USD',
+  description TEXT,
+  entry_date DATE DEFAULT CURRENT_DATE,
+  niche_id UUID REFERENCES niche_profiles(id),
+  link_id UUID REFERENCES affiliate_links(id),
+  created_at TIMESTAMPTZ DEFAULT now()
+)`);
+
 const tables = await client.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name`);
 console.log("Tables:", tables.rows.map((t) => t.table_name).join(", "));
 
