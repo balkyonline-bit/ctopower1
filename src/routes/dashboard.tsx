@@ -121,12 +121,12 @@ const fetchAllNicheSlugs = createServerFn().handler(async () => {
 
 // ── Executor server functions ──
 
-const runTaskAction = createServerFn().handler(async (taskId: string) => {
+const runTaskAction = createServerFn({ method: "POST" }).handler(async (taskId: string) => {
   const { executeTask } = await import("~/services/agent-executor");
   return executeTask(taskId);
 });
 
-const runPipelineAction = createServerFn().handler(async (nicheSlug: string) => {
+const runPipelineAction = createServerFn({ method: "POST" }).handler(async (nicheSlug: string) => {
   const { runContentPipeline } = await import("~/services/content-pipeline");
   return runContentPipeline(nicheSlug);
 });
@@ -185,7 +185,7 @@ const fetchAgentStats = createServerFn().handler(async () => {
 
 // ── Bulk operations ──
 
-const runAllPendingForNiche = createServerFn().handler(async (nicheSlug: string) => {
+const runAllPendingForNiche = createServerFn({ method: "POST" }).handler(async (nicheSlug: string) => {
   const sql = getSql();
   
   const nicheRows = await sql`
@@ -264,7 +264,7 @@ const fetchDashboardSummary = createServerFn().handler(async () => {
 
 // ── Task management ──
 
-const completeTask = createServerFn().handler(async (taskId: string) => {
+const completeTask = createServerFn({ method: "POST" }).handler(async (taskId: string) => {
   const sql = getSql();
   await sql`
     UPDATE agent_tasks 
@@ -274,7 +274,7 @@ const completeTask = createServerFn().handler(async (taskId: string) => {
   return { success: true };
 });
 
-const updateTaskStatus = createServerFn().handler(async ({ taskId, status }: { taskId: string; status: string }) => {
+const updateTaskStatus = createServerFn({ method: "POST" }).handler(async ({ taskId, status }: { taskId: string; status: string }) => {
   const sql = getSql();
   if (status === "in_progress") {
     await sql`
@@ -298,7 +298,7 @@ const updateTaskStatus = createServerFn().handler(async ({ taskId, status }: { t
   return { success: true };
 });
 
-const createTask = createServerFn().handler(async ({ agentId, title, description }: { agentId: string; title: string; description: string }) => {
+const createTask = createServerFn({ method: "POST" }).handler(async ({ agentId, title, description }: { agentId: string; title: string; description: string }) => {
   const sql = getSql();
   await sql`
     INSERT INTO agent_tasks (agent_id, title, description, status)

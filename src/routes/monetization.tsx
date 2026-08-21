@@ -201,7 +201,7 @@ const fetchMonetizationData = createServerFn().handler(async () => {
   };
 });
 
-const upsertProgram = createServerFn().handler(
+const upsertProgram = createServerFn({ method: "POST" }).handler(
   async (input: {
     id?: string | null;
     name: string;
@@ -230,19 +230,19 @@ const upsertProgram = createServerFn().handler(
   }
 );
 
-const setProgramStatus = createServerFn().handler(async (input: { id: string; status: string }) => {
+const setProgramStatus = createServerFn({ method: "POST" }).handler(async (input: { id: string; status: string }) => {
   const sql = getSql();
   await sql`UPDATE affiliate_programs SET status = ${input.status} WHERE id = ${input.id}`;
   return { success: true };
 });
 
-const deleteProgram = createServerFn().handler(async (id: string) => {
+const deleteProgram = createServerFn({ method: "POST" }).handler(async (id: string) => {
   const sql = getSql();
   await sql`DELETE FROM affiliate_programs WHERE id = ${id}`;
   return { success: true };
 });
 
-const upsertLink = createServerFn().handler(
+const upsertLink = createServerFn({ method: "POST" }).handler(
   async (input: {
     id?: string | null;
     label: string;
@@ -273,19 +273,19 @@ const upsertLink = createServerFn().handler(
   }
 );
 
-const setLinkStatus = createServerFn().handler(async (input: { id: string; status: string }) => {
+const setLinkStatus = createServerFn({ method: "POST" }).handler(async (input: { id: string; status: string }) => {
   const sql = getSql();
   await sql`UPDATE affiliate_links SET status = ${input.status} WHERE id = ${input.id}`;
   return { success: true };
 });
 
-const deleteLink = createServerFn().handler(async (id: string) => {
+const deleteLink = createServerFn({ method: "POST" }).handler(async (id: string) => {
   const sql = getSql();
   await sql`DELETE FROM affiliate_links WHERE id = ${id}`;
   return { success: true };
 });
 
-const upsertAdSlot = createServerFn().handler(
+const upsertAdSlot = createServerFn({ method: "POST" }).handler(
   async (input: { id?: string | null; name: string; pageLocation?: string | null; format?: string | null; status?: string }) => {
     const sql = getSql();
     if (input.id) {
@@ -306,19 +306,19 @@ const upsertAdSlot = createServerFn().handler(
   }
 );
 
-const setAdSlotStatus = createServerFn().handler(async (input: { id: string; status: string }) => {
+const setAdSlotStatus = createServerFn({ method: "POST" }).handler(async (input: { id: string; status: string }) => {
   const sql = getSql();
   await sql`UPDATE ad_slots SET status = ${input.status} WHERE id = ${input.id}`;
   return { success: true };
 });
 
-const deleteAdSlot = createServerFn().handler(async (id: string) => {
+const deleteAdSlot = createServerFn({ method: "POST" }).handler(async (id: string) => {
   const sql = getSql();
   await sql`DELETE FROM ad_slots WHERE id = ${id}`;
   return { success: true };
 });
 
-const addRevenueEntry = createServerFn().handler(
+const addRevenueEntry = createServerFn({ method: "POST" }).handler(
   async (input: {
     source: string;
     amount: number;
@@ -337,7 +337,7 @@ const addRevenueEntry = createServerFn().handler(
   }
 );
 
-const deleteRevenueEntry = createServerFn().handler(async (id: string) => {
+const deleteRevenueEntry = createServerFn({ method: "POST" }).handler(async (id: string) => {
   const sql = getSql();
   await sql`DELETE FROM revenue_entries WHERE id = ${id}`;
   return { success: true };

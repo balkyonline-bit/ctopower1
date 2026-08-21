@@ -3,7 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "~/db";
 import { useTranslation } from "react-i18next";
 
-export const logAgentAction = createServerFn().handler(
+export const logAgentAction = createServerFn({ method: "POST" }).handler(
   async (opts: { agent_id: string; action: string; niche_name?: string }) => {
     const sql = getSql();
     const { agent_id, action, niche_name } = opts;

@@ -25,7 +25,7 @@ function slugify(text: string): string {
 
 // ── Server function: create niche profile + 3 initial tasks ──
 
-const createNicheProfile = createServerFn().handler(async (nicheInput: string) => {
+const createNicheProfile = createServerFn({ method: "POST" }).handler(async (nicheInput: string) => {
   const sql = getSql();
   const trimmed = nicheInput.trim();
   const slug = slugify(trimmed);
