@@ -25,7 +25,8 @@ function slugify(text: string): string {
 
 // ── Server function: create niche profile + 3 initial tasks ──
 
-const createNicheProfile = createServerFn({ method: "POST" }).handler(async (nicheInput: string) => {
+const createNicheProfile = createServerFn({ method: "POST" }).handler(async (ctx) => {
+  const nicheInput = ctx.data as string;
   const sql = getSql();
   const trimmed = nicheInput.trim();
   const slug = slugify(trimmed);
@@ -118,7 +119,7 @@ function NicheForm({ niche, setNiche }: { niche: string; setNiche: (v: string) =
 
     setSubmitting(true);
     try {
-      await createNicheProfile(trimmed);
+      await createNicheProfile({ data: trimmed });
       window.location.href = `/niche/${slugify(trimmed)}`;
     } catch (err) {
       console.error("Failed to create niche:", err);

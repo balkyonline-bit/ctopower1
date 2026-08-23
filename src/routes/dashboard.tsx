@@ -121,14 +121,14 @@ const fetchAllNicheSlugs = createServerFn().handler(async () => {
 
 // ── Executor server functions ──
 
-const runTaskAction = createServerFn({ method: "POST" }).handler(async (taskId: string) => {
+const runTaskAction = createServerFn({ method: "POST" }).handler(async (ctx) => {
   const { executeTask } = await import("~/services/agent-executor");
-  return executeTask(taskId);
+  return executeTask(ctx.data as string);
 });
 
-const runPipelineAction = createServerFn({ method: "POST" }).handler(async (nicheSlug: string) => {
+const runPipelineAction = createServerFn({ method: "POST" }).handler(async (ctx) => {
   const { runContentPipeline } = await import("~/services/content-pipeline");
-  return runContentPipeline(nicheSlug);
+  return runContentPipeline(ctx.data as string);
 });
 
 // ── Activity log ──
@@ -185,7 +185,8 @@ const fetchAgentStats = createServerFn().handler(async () => {
 
 // ── Bulk operations ──
 
-const runAllPendingForNiche = createServerFn({ method: "POST" }).handler(async (nicheSlug: string) => {
+const runAllPendingForNiche = createServerFn({ method: "POST" }).handler(async (ctx) => {
+  const nicheSlug = ctx.data as string;
   const sql = getSql();
   
   const nicheRows = await sql`
@@ -264,7 +265,8 @@ const fetchDashboardSummary = createServerFn().handler(async () => {
 
 // ── Task management ──
 
-const completeTask = createServerFn({ method: "POST" }).handler(async (taskId: string) => {
+const completeTask = createServerFn({ method: "POST" }).handler(async (ctx) => {
+  const taskId = ctx.data as string;
   const sql = getSql();
   await sql`
     UPDATE agent_tasks 
@@ -274,7 +276,8 @@ const completeTask = createServerFn({ method: "POST" }).handler(async (taskId: s
   return { success: true };
 });
 
-const updateTaskStatus = createServerFn({ method: "POST" }).handler(async ({ taskId, status }: { taskId: string; status: string }) => {
+const updateTaskStatus = createServerFn({ method: "POST" }).handler(async (ctx) => {
+  const { taskId, status } = ctx.data as { taskId: string; status: string };
   const sql = getSql();
   if (status === "in_progress") {
     await sql`
@@ -298,7 +301,8 @@ const updateTaskStatus = createServerFn({ method: "POST" }).handler(async ({ tas
   return { success: true };
 });
 
-const createTask = createServerFn({ method: "POST" }).handler(async ({ agentId, title, description }: { agentId: string; title: string; description: string }) => {
+const createTask = createServerFn({ method: "POST" }).handler(async (ctx) => {
+  const { agentId, title, description } = ctx.data as { agentId: string; title: string; description: string };
   const sql = getSql();
   await sql`
     INSERT INTO agent_tasks (agent_id, title, description, status)
@@ -444,7 +448,7 @@ function CreateTaskModal({ agents, onClose, onCreated }: { agents: Array<{ id: s
     if (!title.trim() || !agentId || submitting) return;
     setSubmitting(true);
     try {
-      await createTask({ agentId, title: title.trim(), description: description.trim() });
+      await createTask({ data: { agentId, title: title.trim(), description: description.trim() } });
       onCreated();
       onClose();
     } catch (err) {
@@ -583,7 +587,7 @@ function Dashboard() {
       return next;
     });
     try {
-      const result = await runTaskAction(taskId);
+      const result = await runTaskAction({ data: taskId });
       setTaskResults((prev) => ({ ...prev, [taskId]: result }));
       if (!result.success) {
         setTaskErrors((prev) => ({ ...prev, [taskId]: result.error || "Task failed" }));
@@ -607,7 +611,7 @@ function Dashboard() {
     setPipelineRunning(true);
     setPipelineResult(null);
     try {
-      const result = await runPipelineAction(nicheSlug);
+      const result = await runPipelineAction({ data: nicheSlug });
       setPipelineResult(result as unknown as Record<string, unknown>);
     } catch (err) {
       setPipelineResult({

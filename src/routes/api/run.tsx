@@ -8,16 +8,16 @@ import { runContentPipeline } from "~/services/content-pipeline";
 import { useTranslation } from "react-i18next";
 
 export const runTaskAction = createServerFn({ method: "POST" }).handler(
-  async (opts: { task_id: string }) => {
-    const { task_id } = opts;
+  async (ctx) => {
+    const { task_id } = (ctx.data ?? {}) as { task_id?: string };
     if (!task_id) throw new Error("Missing required field: task_id");
     return executeTask(task_id);
   },
 );
 
 export const runPipelineAction = createServerFn({ method: "POST" }).handler(
-  async (opts: { niche_slug: string }) => {
-    const { niche_slug } = opts;
+  async (ctx) => {
+    const { niche_slug } = (ctx.data ?? {}) as { niche_slug?: string };
     if (!niche_slug) throw new Error("Missing required field: niche_slug");
     return runContentPipeline(niche_slug);
   },
