@@ -25,6 +25,32 @@ await client.query(`ALTER TABLE niche_profiles ADD COLUMN IF NOT EXISTS slug TEX
 await client.query(`ALTER TABLE agent_tasks ADD COLUMN IF NOT EXISTS niche_id UUID`);
 await client.query(`ALTER TABLE agent_tasks ADD COLUMN IF NOT EXISTS status TEXT`);
 
+// Social Media Automation tables (also in src/db/schema.sql; duplicated here so the
+// pg wire-protocol runner creates them even if schema.sql application ever changes)
+await client.query(`CREATE TABLE IF NOT EXISTS social_accounts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  platform TEXT NOT NULL,
+  handle TEXT NOT NULL,
+  niche_id UUID REFERENCES niche_profiles(id),
+  status TEXT DEFAULT 'active',
+  created_at TIMESTAMPTZ DEFAULT now()
+)`);
+await client.query(`CREATE TABLE IF NOT EXISTS social_posts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  niche_id UUID REFERENCES niche_profiles(id),
+  account_id UUID REFERENCES social_accounts(id),
+  platform TEXT NOT NULL,
+  platforms TEXT[] DEFAULT '{}',
+  title TEXT NOT NULL,
+  content TEXT,
+  image_url TEXT,
+  link TEXT,
+  scheduled_at TIMESTAMPTZ,
+  published_at TIMESTAMPTZ,
+  status TEXT DEFAULT 'draft',
+  created_at TIMESTAMPTZ DEFAULT now()
+)`);
+
 // Monetization Engine tables (also in src/db/schema.sql; duplicated here so the
 // pg wire-protocol runner creates them even if schema.sql application ever changes)
 await client.query(`CREATE TABLE IF NOT EXISTS affiliate_programs (
