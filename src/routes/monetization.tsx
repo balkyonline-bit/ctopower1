@@ -201,15 +201,16 @@ const fetchMonetizationData = createServerFn().handler(async () => {
   };
 });
 
-const upsertProgram = createServerFn().handler(
-  async (input: {
-    id?: string | null;
-    name: string;
-    network?: string | null;
-    commissionRate?: number | null;
-    notes?: string | null;
-    status?: string;
-  }) => {
+const upsertProgram = createServerFn({ method: "POST" }).handler(
+  async (ctx) => {
+    const input = ctx.data as {
+      id?: string | null;
+      name: string;
+      network?: string | null;
+      commissionRate?: number | null;
+      notes?: string | null;
+      status?: string;
+    };
     const sql = getSql();
     if (input.id) {
       await sql`
@@ -230,28 +231,31 @@ const upsertProgram = createServerFn().handler(
   }
 );
 
-const setProgramStatus = createServerFn().handler(async (input: { id: string; status: string }) => {
+const setProgramStatus = createServerFn({ method: "POST" }).handler(async (ctx) => {
+  const { id, status } = ctx.data as { id: string; status: string };
   const sql = getSql();
-  await sql`UPDATE affiliate_programs SET status = ${input.status} WHERE id = ${input.id}`;
+  await sql`UPDATE affiliate_programs SET status = ${status} WHERE id = ${id}`;
   return { success: true };
 });
 
-const deleteProgram = createServerFn().handler(async (id: string) => {
+const deleteProgram = createServerFn({ method: "POST" }).handler(async (ctx) => {
+  const id = ctx.data as string;
   const sql = getSql();
   await sql`DELETE FROM affiliate_programs WHERE id = ${id}`;
   return { success: true };
 });
 
-const upsertLink = createServerFn().handler(
-  async (input: {
-    id?: string | null;
-    label: string;
-    url: string;
-    programId?: string | null;
-    nicheId?: string | null;
-    trackingCode?: string | null;
-    status?: string;
-  }) => {
+const upsertLink = createServerFn({ method: "POST" }).handler(
+  async (ctx) => {
+    const input = ctx.data as {
+      id?: string | null;
+      label: string;
+      url: string;
+      programId?: string | null;
+      nicheId?: string | null;
+      trackingCode?: string | null;
+      status?: string;
+    };
     const sql = getSql();
     if (input.id) {
       await sql`
@@ -273,20 +277,23 @@ const upsertLink = createServerFn().handler(
   }
 );
 
-const setLinkStatus = createServerFn().handler(async (input: { id: string; status: string }) => {
+const setLinkStatus = createServerFn({ method: "POST" }).handler(async (ctx) => {
+  const { id, status } = ctx.data as { id: string; status: string };
   const sql = getSql();
-  await sql`UPDATE affiliate_links SET status = ${input.status} WHERE id = ${input.id}`;
+  await sql`UPDATE affiliate_links SET status = ${status} WHERE id = ${id}`;
   return { success: true };
 });
 
-const deleteLink = createServerFn().handler(async (id: string) => {
+const deleteLink = createServerFn({ method: "POST" }).handler(async (ctx) => {
+  const id = ctx.data as string;
   const sql = getSql();
   await sql`DELETE FROM affiliate_links WHERE id = ${id}`;
   return { success: true };
 });
 
-const upsertAdSlot = createServerFn().handler(
-  async (input: { id?: string | null; name: string; pageLocation?: string | null; format?: string | null; status?: string }) => {
+const upsertAdSlot = createServerFn({ method: "POST" }).handler(
+  async (ctx) => {
+    const input = ctx.data as { id?: string | null; name: string; pageLocation?: string | null; format?: string | null; status?: string };
     const sql = getSql();
     if (input.id) {
       await sql`
@@ -306,28 +313,31 @@ const upsertAdSlot = createServerFn().handler(
   }
 );
 
-const setAdSlotStatus = createServerFn().handler(async (input: { id: string; status: string }) => {
+const setAdSlotStatus = createServerFn({ method: "POST" }).handler(async (ctx) => {
+  const { id, status } = ctx.data as { id: string; status: string };
   const sql = getSql();
-  await sql`UPDATE ad_slots SET status = ${input.status} WHERE id = ${input.id}`;
+  await sql`UPDATE ad_slots SET status = ${status} WHERE id = ${id}`;
   return { success: true };
 });
 
-const deleteAdSlot = createServerFn().handler(async (id: string) => {
+const deleteAdSlot = createServerFn({ method: "POST" }).handler(async (ctx) => {
+  const id = ctx.data as string;
   const sql = getSql();
   await sql`DELETE FROM ad_slots WHERE id = ${id}`;
   return { success: true };
 });
 
-const addRevenueEntry = createServerFn().handler(
-  async (input: {
-    source: string;
-    amount: number;
-    currency?: string;
-    description?: string | null;
-    entryDate?: string | null;
-    nicheId?: string | null;
-    linkId?: string | null;
-  }) => {
+const addRevenueEntry = createServerFn({ method: "POST" }).handler(
+  async (ctx) => {
+    const input = ctx.data as {
+      source: string;
+      amount: number;
+      currency?: string;
+      description?: string | null;
+      entryDate?: string | null;
+      nicheId?: string | null;
+      linkId?: string | null;
+    };
     const sql = getSql();
     await sql`
       INSERT INTO revenue_entries (source, amount, currency, description, entry_date, niche_id, link_id)
@@ -337,7 +347,8 @@ const addRevenueEntry = createServerFn().handler(
   }
 );
 
-const deleteRevenueEntry = createServerFn().handler(async (id: string) => {
+const deleteRevenueEntry = createServerFn({ method: "POST" }).handler(async (ctx) => {
+  const id = ctx.data as string;
   const sql = getSql();
   await sql`DELETE FROM revenue_entries WHERE id = ${id}`;
   return { success: true };
@@ -500,11 +511,13 @@ function ProgramSection({ programs, onChanged }: { programs: Program[]; onChange
     setError(null);
     try {
       await upsertProgram({
-        id: editingId,
-        name: name.trim(),
-        network: network.trim() || null,
-        commissionRate: rate ? Number(rate) : null,
-        notes: notes.trim() || null,
+        data: {
+          id: editingId,
+          name: name.trim(),
+          network: network.trim() || null,
+          commissionRate: rate ? Number(rate) : null,
+          notes: notes.trim() || null,
+        },
       });
       reset();
       await onChanged();
@@ -516,13 +529,13 @@ function ProgramSection({ programs, onChanged }: { programs: Program[]; onChange
   };
 
   const toggle = async (p: Program) => {
-    await setProgramStatus({ id: p.id, status: p.status === "active" ? "paused" : "active" });
+    await setProgramStatus({ data: { id: p.id, status: p.status === "active" ? "paused" : "active" } });
     await onChanged();
   };
 
   const remove = async (p: Program) => {
     if (!confirm(`Delete program "${p.name}"?`)) return;
-    await deleteProgram(p.id);
+    await deleteProgram({ data: p.id });
     await onChanged();
   };
 
@@ -652,12 +665,14 @@ function LinkSection({
     setError(null);
     try {
       await upsertLink({
-        id: editingId,
-        label: label.trim(),
-        url: url.trim(),
-        programId: programId || null,
-        nicheId: nicheId || null,
-        trackingCode: trackingCode.trim() || null,
+        data: {
+          id: editingId,
+          label: label.trim(),
+          url: url.trim(),
+          programId: programId || null,
+          nicheId: nicheId || null,
+          trackingCode: trackingCode.trim() || null,
+        },
       });
       reset();
       await onChanged();
@@ -669,13 +684,13 @@ function LinkSection({
   };
 
   const toggle = async (l: Link) => {
-    await setLinkStatus({ id: l.id, status: l.status === "active" ? "paused" : "active" });
+    await setLinkStatus({ data: { id: l.id, status: l.status === "active" ? "paused" : "active" } });
     await onChanged();
   };
 
   const remove = async (l: Link) => {
     if (!confirm(`Delete link "${l.label}"?`)) return;
-    await deleteLink(l.id);
+    await deleteLink({ data: l.id });
     await onChanged();
   };
 
@@ -822,10 +837,12 @@ function AdSlotSection({ adSlots, onChanged }: { adSlots: AdSlot[]; onChanged: (
     setError(null);
     try {
       await upsertAdSlot({
-        id: editingId,
-        name: name.trim(),
-        pageLocation: pageLocation.trim() || null,
-        format: format.trim() || null,
+        data: {
+          id: editingId,
+          name: name.trim(),
+          pageLocation: pageLocation.trim() || null,
+          format: format.trim() || null,
+        },
       });
       reset();
       await onChanged();
@@ -837,13 +854,13 @@ function AdSlotSection({ adSlots, onChanged }: { adSlots: AdSlot[]; onChanged: (
   };
 
   const toggle = async (s: AdSlot) => {
-    await setAdSlotStatus({ id: s.id, status: s.status === "active" ? "paused" : "active" });
+    await setAdSlotStatus({ data: { id: s.id, status: s.status === "active" ? "paused" : "active" } });
     await onChanged();
   };
 
   const remove = async (s: AdSlot) => {
     if (!confirm(`Delete ad slot "${s.name}"?`)) return;
-    await deleteAdSlot(s.id);
+    await deleteAdSlot({ data: s.id });
     await onChanged();
   };
 
@@ -946,13 +963,15 @@ function RevenueSection({
     setError(null);
     try {
       await addRevenueEntry({
-        source,
-        amount: Number(amount),
-        currency: currency || "USD",
-        description: description.trim() || null,
-        entryDate: entryDate || null,
-        nicheId: nicheId || null,
-        linkId: linkId || null,
+        data: {
+          source,
+          amount: Number(amount),
+          currency: currency || "USD",
+          description: description.trim() || null,
+          entryDate: entryDate || null,
+          nicheId: nicheId || null,
+          linkId: linkId || null,
+        },
       });
       setAmount("");
       setDescription("");
@@ -967,8 +986,8 @@ function RevenueSection({
   };
 
   const remove = async (r: RevenueEntry) => {
-    if (!confirm(`Delete revenue entry of $${fmtMoney(r.amount)}?`)) return;
-    await deleteRevenueEntry(r.id);
+    if (!confirm(`Delete revenue entry of ${fmtMoney(r.amount)}?`)) return;
+    await deleteRevenueEntry({ data: r.id });
     await onChanged();
   };
 

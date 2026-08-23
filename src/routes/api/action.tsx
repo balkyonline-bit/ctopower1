@@ -3,10 +3,14 @@ import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "~/db";
 import { useTranslation } from "react-i18next";
 
-export const logAgentAction = createServerFn().handler(
-  async (opts: { agent_id: string; action: string; niche_name?: string }) => {
+export const logAgentAction = createServerFn({ method: "POST" }).handler(
+  async (ctx) => {
     const sql = getSql();
-    const { agent_id, action, niche_name } = opts;
+    const { agent_id, action, niche_name } = (ctx.data ?? {}) as {
+      agent_id?: string;
+      action?: string;
+      niche_name?: string;
+    };
 
     if (!agent_id || !action) {
       throw new Error("Missing required fields: agent_id, action");
