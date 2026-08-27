@@ -113,6 +113,33 @@ CREATE TABLE IF NOT EXISTS ad_slots (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Social Media Automation: connected accounts
+CREATE TABLE IF NOT EXISTS social_accounts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  platform TEXT NOT NULL,
+  handle TEXT NOT NULL,
+  niche_id UUID REFERENCES niche_profiles(id),
+  status TEXT DEFAULT 'active',
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Social Media Automation: posts across platforms
+CREATE TABLE IF NOT EXISTS social_posts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  niche_id UUID REFERENCES niche_profiles(id),
+  account_id UUID REFERENCES social_accounts(id),
+  platform TEXT NOT NULL,
+  platforms TEXT[] DEFAULT '{}',
+  title TEXT NOT NULL,
+  content TEXT,
+  image_url TEXT,
+  link TEXT,
+  scheduled_at TIMESTAMPTZ,
+  published_at TIMESTAMPTZ,
+  status TEXT DEFAULT 'draft',
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- Monetization Engine: Revenue Log
 CREATE TABLE IF NOT EXISTS revenue_entries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
