@@ -57,6 +57,7 @@ function NavBar() {
     { name: t("nav.dashboard"), href: "/dashboard" },
     { name: t("nav.gallery"), href: "/gallery" },
     { name: t("nav.social"), href: "/social" },
+    { name: "📧 Email", href: "/email" },
     { name: t("nav.monetization"), href: "/monetization" },
     { name: t("nav.demo"), href: "/tech" },
   ] as const;
