@@ -36,6 +36,45 @@ interface Niche {
   slug: string;
 }
 
+interface SequenceStep {
+  id: string;
+  sequence_id: string;
+  position: number;
+  delay_days: number;
+  subject: string | null;
+  body_html: string | null;
+  created_at: string;
+}
+
+interface Sequence {
+  id: string;
+  name: string;
+  niche_id: string | null;
+  niche_name?: string | null;
+  trigger_type: string;
+  status: string;
+  description: string | null;
+  created_at: string;
+  steps: SequenceStep[];
+  step_count: number;
+  total_delay: number;
+}
+
+interface Campaign {
+  id: string;
+  name: string;
+  niche_id: string | null;
+  niche_name?: string | null;
+  list_id: string | null;
+  list_name?: string | null;
+  subject: string | null;
+  body_html: string | null;
+  body_text: string | null;
+  status: string;
+  sent_at: string | null;
+  created_at: string;
+}
+
 interface Kpis {
   subscribed: number;
   activeLists: number;
@@ -47,6 +86,8 @@ interface EmailData {
   lists: List[];
   subscribers: Subscriber[];
   niches: Niche[];
+  sequences: Sequence[];
+  campaigns: Campaign[];
   kpis: Kpis;
 }
 
@@ -55,7 +96,7 @@ interface EmailData {
 const fetchEmailData = createServerFn().handler(async () => {
   const sql = getSql();
 
-  const [lists, subscribers, memberships, niches, subscribed, activeLists, draftCampaigns, sentCampaigns] =
+  const [lists, subscribers, memberships, niches, subscribed, activeLists, draftCampaigns, sentCampaigns, sequences, steps, campaigns] =
     await Promise.all([
       sql`
         SELECT el.*, np.niche_name, COUNT(sl.subscriber_id) AS subscriber_count
@@ -82,6 +123,24 @@ const fetchEmailData = createServerFn().handler(async () => {
       sql`SELECT count(*) AS c FROM email_lists WHERE status = 'active'`,
       sql`SELECT count(*) AS c FROM email_campaigns WHERE status = 'draft'`,
       sql`SELECT count(*) AS c FROM email_campaigns WHERE status = 'sent'`,
+      sql`
+        SELECT es.*, np.niche_name
+        FROM email_sequences es
+        LEFT JOIN niche_profiles np ON es.niche_id = np.id
+        ORDER BY es.created_at DESC
+      `,
+      sql`
+        SELECT st.*
+        FROM email_sequence_steps st
+        ORDER BY st.sequence_id ASC, st.position ASC
+      `,
+      sql`
+        SELECT ec.*, np.niche_name, el.name AS list_name
+        FROM email_campaigns ec
+        LEFT JOIN niche_profiles np ON ec.niche_id = np.id
+        LEFT JOIN email_lists el ON ec.list_id = el.id
+        ORDER BY ec.created_at DESC
+      `,
     ]);
 
   const num = (v: unknown) => Number(v ?? 0);
@@ -120,6 +179,54 @@ const fetchEmailData = createServerFn().handler(async () => {
       id: r.id as string,
       niche_name: r.niche_name as string,
       slug: r.slug as string,
+    })),
+    sequences: (() => {
+      const stepRows = steps as Record<string, unknown>[];
+      const bySeq: Record<string, SequenceStep[]> = {};
+      for (const st of stepRows) {
+        const sid = st.sequence_id as string;
+        if (!bySeq[sid]) bySeq[sid] = [];
+        bySeq[sid].push({
+          id: st.id as string,
+          sequence_id: sid,
+          position: num(st.position),
+          delay_days: num(st.delay_days),
+          subject: (st.subject as string) ?? null,
+          body_html: (st.body_html as string) ?? null,
+          created_at: String(st.created_at),
+        });
+      }
+      return (sequences as Record<string, unknown>[]).map((r) => {
+        const sid = r.id as string;
+        const seqSteps = (bySeq[sid] ?? []).sort((a, b) => a.position - b.position);
+        return {
+          id: sid,
+          name: r.name as string,
+          niche_id: (r.niche_id as string) ?? null,
+          niche_name: (r.niche_name as string) ?? null,
+          trigger_type: (r.trigger_type as string) ?? "manual",
+          status: (r.status as string) ?? "draft",
+          description: (r.description as string) ?? null,
+          created_at: String(r.created_at),
+          steps: seqSteps,
+          step_count: seqSteps.length,
+          total_delay: seqSteps.reduce((a, s) => a + s.delay_days, 0),
+        };
+      });
+    })(),
+    campaigns: (campaigns as Record<string, unknown>[]).map((r) => ({
+      id: r.id as string,
+      name: r.name as string,
+      niche_id: (r.niche_id as string) ?? null,
+      niche_name: (r.niche_name as string) ?? null,
+      list_id: (r.list_id as string) ?? null,
+      list_name: (r.list_name as string) ?? null,
+      subject: (r.subject as string) ?? null,
+      body_html: (r.body_html as string) ?? null,
+      body_text: (r.body_text as string) ?? null,
+      status: (r.status as string) ?? "draft",
+      sent_at: r.sent_at ? String(r.sent_at) : null,
+      created_at: String(r.created_at),
     })),
     kpis: {
       subscribed: num(subscribed[0]?.c),
@@ -245,6 +352,147 @@ const sqlDeleteSubscriber = createServerFn({ method: "POST" }).handler(async (ct
   return { success: true };
 });
 
+const upsertSequence = createServerFn({ method: "POST" }).handler(async (ctx) => {
+  const input = ctx.data as {
+    id?: string | null;
+    name: string;
+    nicheId?: string | null;
+    triggerType?: string;
+    description?: string | null;
+  };
+  const sql = getSql();
+  const triggerType = input.triggerType || "manual";
+  if (input.id) {
+    await sql`
+      UPDATE email_sequences
+      SET name = ${input.name},
+          niche_id = ${input.nicheId ?? null},
+          trigger_type = ${triggerType},
+          description = ${input.description ?? null},
+          updated_at = now()
+      WHERE id = ${input.id}
+    `;
+  } else {
+    await sql`
+      INSERT INTO email_sequences (name, niche_id, trigger_type, status, description)
+      VALUES (${input.name}, ${input.nicheId ?? null}, ${triggerType}, 'draft', ${input.description ?? null})
+    `;
+  }
+  return { success: true };
+});
+
+const upsertSequenceStep = createServerFn({ method: "POST" }).handler(async (ctx) => {
+  const input = ctx.data as {
+    id?: string | null;
+    sequenceId: string;
+    delayDays?: number;
+    subject?: string | null;
+    bodyHtml?: string | null;
+  };
+  const sql = getSql();
+  const delayDays = Number(input.delayDays ?? 0);
+  if (input.id) {
+    await sql`
+      UPDATE email_sequence_steps
+      SET delay_days = ${delayDays},
+          subject = ${input.subject ?? null},
+          body_html = ${input.bodyHtml ?? null}
+      WHERE id = ${input.id}
+    `;
+  } else {
+    const pos = await sql`
+      SELECT COALESCE(MAX(position), -1) + 1 AS p
+      FROM email_sequence_steps
+      WHERE sequence_id = ${input.sequenceId}
+    `;
+    const nextPos = Number((pos as Record<string, unknown>[])[0]?.p ?? 0);
+    await sql`
+      INSERT INTO email_sequence_steps (sequence_id, position, delay_days, subject, body_html)
+      VALUES (${input.sequenceId}, ${nextPos}, ${delayDays}, ${input.subject ?? null}, ${input.bodyHtml ?? null})
+    `;
+  }
+  return { success: true };
+});
+
+const deleteSequenceStep = createServerFn({ method: "POST" }).handler(async (ctx) => {
+  const id = ctx.data as string;
+  const sql = getSql();
+  await sql`DELETE FROM email_sequence_steps WHERE id = ${id}`;
+  return { success: true };
+});
+
+const reorderSequenceStep = createServerFn({ method: "POST" }).handler(async (ctx) => {
+  const { id, sequenceId, direction } = ctx.data as {
+    id: string;
+    sequenceId: string;
+    direction: "up" | "down";
+  };
+  const sql = getSql();
+  const rows = (await sql`
+    SELECT id, position FROM email_sequence_steps
+    WHERE sequence_id = ${sequenceId}
+    ORDER BY position ASC
+  `) as Record<string, unknown>[];
+  const idx = rows.findIndex((r) => r.id === id);
+  if (idx < 0) return { success: false };
+  const target = direction === "up" ? rows[idx - 1] : rows[idx + 1];
+  if (!target) return { success: false };
+  const currentPos = Number(rows[idx].position);
+  const targetPos = Number(target.position);
+  // Atomic swap that never violates UNIQUE (sequence_id, position): move the step to a
+  // sentinel position first, then the target into its slot, then the step into the target's
+  // slot. Positions are always >= 0, so -1 is guaranteed free.
+  await sql`UPDATE email_sequence_steps SET position = -1 WHERE id = ${id}`;
+  await sql`UPDATE email_sequence_steps SET position = ${currentPos} WHERE id = ${target.id as string}`;
+  await sql`UPDATE email_sequence_steps SET position = ${targetPos} WHERE id = ${id}`;
+  return { success: true };
+});
+
+const upsertCampaign = createServerFn({ method: "POST" }).handler(async (ctx) => {
+  const input = ctx.data as {
+    id?: string | null;
+    name: string;
+    nicheId?: string | null;
+    listId?: string | null;
+    subject?: string | null;
+    bodyHtml?: string | null;
+  };
+  const sql = getSql();
+  if (input.id) {
+    await sql`
+      UPDATE email_campaigns
+      SET name = ${input.name},
+          niche_id = ${input.nicheId ?? null},
+          list_id = ${input.listId ?? null},
+          subject = ${input.subject ?? null},
+          body_html = ${input.bodyHtml ?? null},
+          updated_at = now()
+      WHERE id = ${input.id}
+    `;
+  } else {
+    await sql`
+      INSERT INTO email_campaigns (name, niche_id, list_id, subject, body_html, status)
+      VALUES (${input.name}, ${input.nicheId ?? null}, ${input.listId ?? null}, ${input.subject ?? null}, ${input.bodyHtml ?? null}, 'draft')
+    `;
+  }
+  return { success: true };
+});
+
+const setCampaignStatus = createServerFn({ method: "POST" }).handler(async (ctx) => {
+  const { id, status } = ctx.data as { id: string; status: string };
+  const sql = getSql();
+  if (status === "sent") {
+    await sql`
+      UPDATE email_campaigns SET status = 'sent', sent_at = now(), updated_at = now() WHERE id = ${id}
+    `;
+  } else {
+    await sql`
+      UPDATE email_campaigns SET status = ${status}, sent_at = NULL, updated_at = now() WHERE id = ${id}
+    `;
+  }
+  return { success: true };
+});
+
 // ── Route ──
 
 export const Route = createFileRoute("/email")({
@@ -282,10 +530,11 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function StatusPill({ status }: { status: string }) {
   let color = "bg-yellow-900/60 text-yellow-400 border-yellow-500/30";
-  if (status === "subscribed") color = "bg-green-900/60 text-green-400 border-green-500/30";
-  else if (status === "unsubscribed" || status === "bounced" || status === "complained")
+  if (status === "subscribed" || status === "sent" || status === "active")
+    color = "bg-green-900/60 text-green-400 border-green-500/30";
+  else if (status === "unsubscribed" || status === "bounced" || status === "complained" || status === "cancelled" || status === "archived" || status === "paused")
     color = "bg-red-900/60 text-red-400 border-red-500/30";
-  else if (status === "unconfirmed") color = "bg-yellow-900/60 text-yellow-400 border-yellow-500/30";
+  else if (status === "unconfirmed" || status === "draft") color = "bg-yellow-900/60 text-yellow-400 border-yellow-500/30";
   return (
     <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${color}`}>
       {status}
@@ -712,6 +961,404 @@ function SubscriberSection({
   );
 }
 
+// ── Sequences section ──
+
+const SEND_TOOLTIP = "Sending requires a connected email provider — not available yet.";
+
+function StepEditor({ sequence, onEdit, onChanged }: { sequence: Sequence; onEdit: (s: Sequence) => void; onChanged: () => void }) {
+  const [subject, setSubject] = useState("");
+  const [delayDays, setDelayDays] = useState("0");
+  const [bodyHtml, setBodyHtml] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const reset = () => {
+    setSubject("");
+    setDelayDays("0");
+    setBodyHtml("");
+    setEditingId(null);
+    setError(null);
+  };
+
+  const startEdit = (st: SequenceStep) => {
+    setEditingId(st.id);
+    setSubject(st.subject ?? "");
+    setDelayDays(String(st.delay_days));
+    setBodyHtml(st.body_html ?? "");
+  };
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await upsertSequenceStep({
+        data: {
+          id: editingId,
+          sequenceId: sequence.id,
+          delayDays: Number(delayDays),
+          subject: subject.trim() || null,
+          bodyHtml: bodyHtml || null,
+        },
+      });
+      reset();
+      await onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save step");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async (st: SequenceStep) => {
+    if (!confirm(`Delete step "${st.subject || `#${st.position}`}"? This cannot be undone.`)) return;
+    await deleteSequenceStep({ data: st.id });
+    await onChanged();
+  };
+
+  const move = async (st: SequenceStep, direction: "up" | "down") => {
+    await reorderSequenceStep({ data: { id: st.id, sequenceId: sequence.id, direction } });
+    await onChanged();
+  };
+
+  const steps = [...sequence.steps].sort((a, b) => a.position - b.position);
+
+  return (
+    <div className="mt-4 rounded-xl border border-gray-800 bg-gray-900/30 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h4 className="font-semibold text-white">{sequence.name}</h4>
+            <button onClick={() => onEdit(sequence)} className={btnGhostSm} title="Edit sequence details">Edit sequence</button>
+          </div>
+          <p className="text-xs text-gray-400">
+            <span className="capitalize">{sequence.trigger_type}</span> trigger · {sequence.step_count} step{sequence.step_count === 1 ? "" : "s"} · {sequence.total_delay}d total delay
+            {sequence.niche_name ? ` · ${sequence.niche_name}` : ""}
+          </p>
+        </div>
+        {sequence.description && <p className="text-xs text-gray-500 max-w-sm">{sequence.description}</p>}
+      </div>
+
+      {/* Step table */}
+      <div className="mt-4 overflow-x-auto rounded-lg border border-gray-800/60">
+        {steps.length === 0 ? (
+          <EmptyHint text="No steps yet — add your first step below." />
+        ) : (
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-gray-800 text-xs uppercase tracking-wider text-gray-500">
+                <th className="px-3 py-2">#</th>
+                <th className="px-3 py-2">Delay</th>
+                <th className="px-3 py-2">Subject</th>
+                <th className="px-3 py-2">Body</th>
+                <th className="px-3 py-2 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {steps.map((st, i) => (
+                <tr key={st.id} className="border-b border-gray-800/50 last:border-0">
+                  <td className="px-3 py-2 text-gray-500">{st.position}</td>
+                  <td className="px-3 py-2 text-gray-300">{st.delay_days}d</td>
+                  <td className="px-3 py-2 font-medium text-white">{st.subject ?? "—"}</td>
+                  <td className="px-3 py-2 text-gray-400">
+                    {st.body_html ? (st.body_html.length > 60 ? st.body_html.slice(0, 60) + "…" : st.body_html) : "—"}
+                  </td>
+                  <td className="px-3 py-2">
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={() => move(st, "up")} disabled={i === 0} className={btnGhostSm} title="Move up">↑</button>
+                      <button onClick={() => move(st, "down")} disabled={i === steps.length - 1} className={btnGhostSm} title="Move down">↓</button>
+                      <button onClick={() => startEdit(st)} className={btnGhostSm}>Edit</button>
+                      <button onClick={() => remove(st)} className={btnDanger}>Delete</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Step form */}
+      <form onSubmit={submit} className="mt-4 space-y-3">
+        <div className="grid gap-3 sm:grid-cols-[140px_1fr]">
+          <Field label="Delay (days)">
+            <input type="number" min={0} className={inputCls} value={delayDays} onChange={(e) => setDelayDays(e.target.value)} />
+          </Field>
+          <Field label="Subject">
+            <input className={inputCls} value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Step subject line" />
+          </Field>
+        </div>
+        <Field label="Body (HTML)">
+          <textarea className={contentCls} value={bodyHtml} onChange={(e) => setBodyHtml(e.target.value)} placeholder="<p>Step body content…</p>" />
+        </Field>
+        <ErrorNote error={error} />
+        <div className="flex items-center gap-3">
+          <button type="submit" disabled={busy} className={btnPrimary}>
+            {busy ? "Saving…" : editingId ? "Update Step" : "Add Step"}
+          </button>
+          {editingId && (
+            <button type="button" onClick={reset} className={btnGhost}>Cancel edit</button>
+          )}
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function SequenceSection({ sequences, niches, onChanged }: { sequences: Sequence[]; niches: Niche[]; onChanged: () => void }) {
+  const [name, setName] = useState("");
+  const [nicheId, setNicheId] = useState("");
+  const [triggerType, setTriggerType] = useState("manual");
+  const [description, setDescription] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const reset = () => {
+    setName("");
+    setNicheId("");
+    setTriggerType("manual");
+    setDescription("");
+    setEditingId(null);
+    setError(null);
+  };
+
+  const startEdit = (s: Sequence) => {
+    setEditingId(s.id);
+    setName(s.name);
+    setNicheId(s.niche_id ?? "");
+    setTriggerType(s.trigger_type);
+    setDescription(s.description ?? "");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await upsertSequence({
+        data: { id: editingId, name: name.trim(), nicheId: nicheId || null, triggerType, description: description.trim() || null },
+      });
+      reset();
+      await onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save sequence");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Section title="🔁 Sequences" description="Automated email sequences (welcome / lead-magnet / manual). Build ordered steps with per-step delays — nothing sends until a provider is connected.">
+      <form onSubmit={submit} className="glass-card rounded-xl p-5 space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Field label="Sequence name *">
+            <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="Welcome sequence" required />
+          </Field>
+          <Field label="Niche">
+            <select className={inputCls} value={nicheId} onChange={(e) => setNicheId(e.target.value)}>
+              <option value="">— none —</option>
+              {niches.map((n) => (
+                <option key={n.id} value={n.id}>{n.niche_name}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Trigger type">
+            <select className={inputCls} value={triggerType} onChange={(e) => setTriggerType(e.target.value)}>
+              <option value="welcome">Welcome</option>
+              <option value="lead_magnet">Lead magnet</option>
+              <option value="manual">Manual</option>
+            </select>
+          </Field>
+          <Field label="Description">
+            <input className={inputCls} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What this sequence does" />
+          </Field>
+        </div>
+        <ErrorNote error={error} />
+        <div className="flex items-center gap-3">
+          <button type="submit" disabled={busy || !name.trim()} className={btnPrimary}>
+            {busy ? "Saving…" : editingId ? "Update Sequence" : "Create Sequence"}
+          </button>
+          {editingId && (
+            <button type="button" onClick={reset} className={btnGhost}>Cancel edit</button>
+          )}
+        </div>
+      </form>
+
+      <div className="mt-6 space-y-4">
+        {sequences.length === 0 ? (
+          <EmptyHint text="No sequences yet — create your first sequence above, then build its steps." />
+        ) : (
+          sequences.map((s) => <StepEditor key={s.id} sequence={s} onEdit={startEdit} onChanged={onChanged} />)
+        )}
+      </div>
+    </Section>
+  );
+}
+
+// ── Campaigns / Newsletter composer ──
+
+function CampaignSection({ campaigns, lists, niches, onChanged }: { campaigns: Campaign[]; lists: List[]; niches: Niche[]; onChanged: () => void }) {
+  const [name, setName] = useState("");
+  const [nicheId, setNicheId] = useState("");
+  const [listId, setListId] = useState("");
+  const [subject, setSubject] = useState("");
+  const [bodyHtml, setBodyHtml] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const reset = () => {
+    setName("");
+    setNicheId("");
+    setListId("");
+    setSubject("");
+    setBodyHtml("");
+    setEditingId(null);
+    setError(null);
+  };
+
+  const startEdit = (c: Campaign) => {
+    setEditingId(c.id);
+    setName(c.name);
+    setNicheId(c.niche_id ?? "");
+    setListId(c.list_id ?? "");
+    setSubject(c.subject ?? "");
+    setBodyHtml(c.body_html ?? "");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await upsertCampaign({
+        data: {
+          id: editingId,
+          name: name.trim(),
+          nicheId: nicheId || null,
+          listId: listId || null,
+          subject: subject.trim() || null,
+          bodyHtml: bodyHtml || null,
+        },
+      });
+      reset();
+      await onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save campaign");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const markSent = async (c: Campaign) => {
+    if (!confirm(`Mark "${c.name}" as SENT (manual placeholder — no email was actually delivered)?`)) return;
+    await setCampaignStatus({ data: { id: c.id, status: "sent" } });
+    await onChanged();
+  };
+
+  const revertDraft = async (c: Campaign) => {
+    await setCampaignStatus({ data: { id: c.id, status: "draft" } });
+    await onChanged();
+  };
+
+  return (
+    <Section title="📨 Campaigns / Newsletter Composer" description="One-off newsletters. Compose a draft targeting a list now — real sending is a later provider-integration step.">
+      <form onSubmit={submit} className="glass-card rounded-xl p-5 space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Field label="Campaign name *">
+            <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="October newsletter" required />
+          </Field>
+          <Field label="Niche">
+            <select className={inputCls} value={nicheId} onChange={(e) => setNicheId(e.target.value)}>
+              <option value="">— none —</option>
+              {niches.map((n) => (
+                <option key={n.id} value={n.id}>{n.niche_name}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Target list">
+            <select className={inputCls} value={listId} onChange={(e) => setListId(e.target.value)}>
+              <option value="">— none —</option>
+              {lists.map((l) => (
+                <option key={l.id} value={l.id}>{l.name}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Subject">
+            <input className={inputCls} value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject line" />
+          </Field>
+        </div>
+        <Field label="Body (HTML)">
+          <textarea className={contentCls} value={bodyHtml} onChange={(e) => setBodyHtml(e.target.value)} placeholder="<h1>Hi there!</h1><p>Your newsletter content…</p>" />
+        </Field>
+        <ErrorNote error={error} />
+        <div className="flex flex-wrap items-center gap-3">
+          <button type="submit" disabled={busy || !name.trim()} className={btnPrimary}>
+            {busy ? "Saving…" : editingId ? "Update Campaign" : "Save Draft"}
+          </button>
+          {editingId && (
+            <button type="button" onClick={reset} className={btnGhost}>Cancel edit</button>
+          )}
+          <button type="button" disabled className={btnPrimary} title={SEND_TOOLTIP}>Send</button>
+          <span className="text-xs text-gray-500">Send is disabled — no email provider connected yet.</span>
+        </div>
+      </form>
+
+      <div className="mt-6 glass-card rounded-xl overflow-x-auto">
+        {campaigns.length === 0 ? (
+          <EmptyHint text="No campaigns yet — compose your first newsletter above and save a draft." />
+        ) : (
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-gray-800 text-xs uppercase tracking-wider text-gray-500">
+                <th className="px-4 py-3">Name</th>
+                <th className="px-4 py-3">List</th>
+                <th className="px-4 py-3">Niche</th>
+                <th className="px-4 py-3">Subject</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {campaigns.map((c) => (
+                <tr key={c.id} className="border-b border-gray-800/50 last:border-0 hover:bg-gray-900/30">
+                  <td className="px-4 py-3 font-medium text-white">{c.name}</td>
+                  <td className="px-4 py-3 text-gray-400">{c.list_name ?? "—"}</td>
+                  <td className="px-4 py-3 text-gray-400">{c.niche_name ?? "—"}</td>
+                  <td className="px-4 py-3 text-gray-300">{c.subject ?? "—"}</td>
+                  <td className="px-4 py-3"><StatusPill status={c.status} /></td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <button onClick={() => startEdit(c)} className={btnGhost}>Edit</button>
+                      {c.status === "sent" ? (
+                        <button onClick={() => revertDraft(c)} className={btnGhost} title="Move back to draft (manual placeholder)">
+                          Revert to draft
+                        </button>
+                      ) : (
+                        <button onClick={() => markSent(c)} className={btnGhost} title="MANUAL PLACEHOLDER — marks as sent without actually delivering email">
+                          Mark sent (manual)
+                        </button>
+                      )}
+                      <button disabled className={btnPrimary} title={SEND_TOOLTIP}>Send</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </Section>
+  );
+}
+
 // ── Page ──
 
 function Email() {
@@ -759,6 +1406,8 @@ function Email() {
 
       <ListSection lists={data.lists} niches={data.niches} onChanged={refresh} />
       <SubscriberSection subscribers={data.subscribers} lists={data.lists} niches={data.niches} onChanged={refresh} />
+      <SequenceSection sequences={data.sequences} niches={data.niches} onChanged={refresh} />
+      <CampaignSection campaigns={data.campaigns} lists={data.lists} niches={data.niches} onChanged={refresh} />
     </div>
   );
 }
