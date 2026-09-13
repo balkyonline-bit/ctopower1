@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "~/db";
+import { getEmailSender } from "~/services/email";
 import { useState } from "react";
 
 // ── Types ──
@@ -72,7 +73,14 @@ interface Campaign {
   body_text: string | null;
   status: string;
   sent_at: string | null;
+  opens: number;
+  clicks: number;
   created_at: string;
+}
+
+interface GrowthPoint {
+  month: string;
+  count: number;
 }
 
 interface Kpis {
@@ -89,6 +97,7 @@ interface EmailData {
   sequences: Sequence[];
   campaigns: Campaign[];
   kpis: Kpis;
+  growth: GrowthPoint[];
 }
 
 // ── Server functions ──
@@ -96,7 +105,7 @@ interface EmailData {
 const fetchEmailData = createServerFn().handler(async () => {
   const sql = getSql();
 
-  const [lists, subscribers, memberships, niches, subscribed, activeLists, draftCampaigns, sentCampaigns, sequences, steps, campaigns] =
+  const [lists, subscribers, memberships, niches, subscribed, activeLists, draftCampaigns, sentCampaigns, sequences, steps, campaigns, growth] =
     await Promise.all([
       sql`
         SELECT el.*, np.niche_name, COUNT(sl.subscriber_id) AS subscriber_count
@@ -140,6 +149,15 @@ const fetchEmailData = createServerFn().handler(async () => {
         LEFT JOIN niche_profiles np ON ec.niche_id = np.id
         LEFT JOIN email_lists el ON ec.list_id = el.id
         ORDER BY ec.created_at DESC
+      `,
+      // Subscribers by month — last 6 months (including the current, partial one),
+      // counting rows by subscribers.created_at bucket.
+      sql`
+        SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month, count(*) AS c
+        FROM subscribers
+        WHERE created_at >= date_trunc('month', now()) - interval '5 months'
+        GROUP BY month
+        ORDER BY month ASC
       `,
     ]);
 
@@ -226,6 +244,8 @@ const fetchEmailData = createServerFn().handler(async () => {
       body_text: (r.body_text as string) ?? null,
       status: (r.status as string) ?? "draft",
       sent_at: r.sent_at ? String(r.sent_at) : null,
+      opens: num(r.opens),
+      clicks: num(r.clicks),
       created_at: String(r.created_at),
     })),
     kpis: {
@@ -234,6 +254,10 @@ const fetchEmailData = createServerFn().handler(async () => {
       draftCampaigns: num(draftCampaigns[0]?.c),
       sentCampaigns: num(sentCampaigns[0]?.c),
     },
+    growth: (growth as Record<string, unknown>[]).map((r) => ({
+      month: r.month as string,
+      count: num(r.c),
+    })),
   };
 });
 
@@ -469,13 +493,15 @@ const upsertCampaign = createServerFn({ method: "POST" }).handler(async (ctx) =>
           updated_at = now()
       WHERE id = ${input.id}
     `;
+    return { success: true, id: input.id };
   } else {
-    await sql`
+    const rows = await sql`
       INSERT INTO email_campaigns (name, niche_id, list_id, subject, body_html, status)
       VALUES (${input.name}, ${input.nicheId ?? null}, ${input.listId ?? null}, ${input.subject ?? null}, ${input.bodyHtml ?? null}, 'draft')
+      RETURNING id
     `;
+    return { success: true, id: (rows as Record<string, unknown>[])[0]?.id as string };
   }
-  return { success: true };
 });
 
 const setCampaignStatus = createServerFn({ method: "POST" }).handler(async (ctx) => {
@@ -491,6 +517,83 @@ const setCampaignStatus = createServerFn({ method: "POST" }).handler(async (ctx)
     `;
   }
   return { success: true };
+});
+
+// Chunk 3: campaign send through the EmailSender seam. The feature layer only talks
+// to getEmailSender().send() — never to a concrete provider class. The default
+// NoopSender records every outgoing email as an email_sends row (status 'pending')
+// in the outbox; a real provider (SMTP/Resend/...) later swaps in behind the same
+// interface. Pending rows are queued for a future sender worker — nothing is
+// delivered to a network in the meantime, and actual delivery MUST re-check
+// subscribers.status (never deliver to unconfirmed/unsubscribed/bounced).
+const sendCampaign = createServerFn({ method: "POST" }).handler(async (ctx) => {
+  const { id } = ctx.data as { id: string };
+  const sql = getSql();
+
+  const cards = (await sql`
+    SELECT id, name, subject, body_html, body_text, list_id, status
+    FROM email_campaigns
+    WHERE id = ${id}
+  `) as Record<string, unknown>[];
+  const campaign = cards[0];
+  if (!campaign) return { success: false, error: "Campaign not found." };
+  if (!campaign.list_id)
+    return { success: false, error: "Campaign has no target list — pick a list before sending." };
+  if (campaign.status === "sent")
+    return { success: false, error: "Campaign is already sent." };
+
+  // Targeted subscribers = current members of the campaign's target list (membership
+  // status 'subscribed'), excluding hard-opted-out/bounced/complained rows. Unconfirmed
+  // addresses are queued as pending placeholders only — real delivery stays gated on
+  // confirmation (see note above).
+  const recipients = (await sql`
+    SELECT s.id, s.email, s.first_name, s.last_name
+    FROM subscriber_lists sl
+    JOIN subscribers s ON s.id = sl.subscriber_id
+    WHERE sl.list_id = ${campaign.list_id as string}
+      AND sl.status = 'subscribed'
+      AND s.status IN ('subscribed', 'unconfirmed')
+    ORDER BY s.created_at ASC
+  `) as Record<string, unknown>[];
+
+  if (recipients.length === 0)
+    return { success: false, error: "Target list has no subscribers — add subscribers to the list first." };
+
+  const subject = (campaign.subject as string) ?? "";
+  const html = (campaign.body_html as string) ?? "";
+  const text = (campaign.body_text as string) ?? undefined;
+
+  const sender = getEmailSender();
+  let pending = 0;
+  let failed = 0;
+  for (const r of recipients) {
+    const result = await sender.send({
+      to: r.email as string,
+      toName: [r.first_name, r.last_name].filter(Boolean).join(" ") || undefined,
+      subject,
+      html,
+      text,
+      metadata: {
+        subscriberId: r.id as string,
+        campaignId: id,
+        listId: campaign.list_id as string,
+      },
+    });
+    if (result.ok) pending += 1;
+    else failed += 1;
+    await sql`
+      INSERT INTO email_sends (subscriber_id, campaign_id, type, status, provider_message_id, subject)
+      VALUES (${r.id as string}, ${id}, 'campaign', ${result.ok ? "pending" : "failed"},
+              ${result.providerMessageId ?? null}, ${subject})
+    `;
+  }
+
+  if (pending > 0) {
+    await sql`
+      UPDATE email_campaigns SET status = 'sent', sent_at = now(), updated_at = now() WHERE id = ${id}
+    `;
+  }
+  return { success: true, pending, failed, provider: sender.name };
 });
 
 // ── Route ──
@@ -573,6 +676,37 @@ function KpiCard({ label, value, sub }: { label: string; value: string; sub?: st
       {sub && <p className="mt-1 text-xs text-gray-400">{sub}</p>}
     </div>
   );
+}
+
+// ── Subscribers-by-month bar chart (lightweight CSS, mirrors monetization's MonthlyBars) ──
+
+function GrowthBars({ growth }: { growth: GrowthPoint[] }) {
+  if (growth.length === 0) return <EmptyHint text="No subscribers recorded yet." />;
+  const max = Math.max(...growth.map((g) => g.count), 1);
+  return (
+    <div className="space-y-2">
+      {growth.map((g) => (
+        <div key={g.month} className="flex items-center gap-3">
+          <span className="w-16 flex-shrink-0 text-xs text-gray-400">{g.month}</span>
+          <div className="h-5 flex-1 overflow-hidden rounded-md bg-gray-800/60">
+            <div
+              className="h-full rounded-md bg-gradient-to-r from-indigo-500 to-cyan-500"
+              style={{ width: `${Math.max((g.count / max) * 100, g.count > 0 ? 4 : 0)}%` }}
+            />
+          </div>
+          <span className="w-12 flex-shrink-0 text-right text-xs font-medium text-gray-300">{g.count}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+interface SendCampaignResult {
+  success: boolean;
+  pending?: number;
+  failed?: number;
+  provider?: string;
+  error?: string;
 }
 
 // ── Lists section ──
@@ -963,7 +1097,8 @@ function SubscriberSection({
 
 // ── Sequences section ──
 
-const SEND_TOOLTIP = "Sending requires a connected email provider — not available yet.";
+const SEND_TOOLTIP =
+  "Queue a send via the sender seam. No provider is connected yet, so the NoopSender records pending outbox rows — nothing is delivered to a network.";
 
 function StepEditor({ sequence, onEdit, onChanged }: { sequence: Sequence; onEdit: (s: Sequence) => void; onChanged: () => void }) {
   const [subject, setSubject] = useState("");
@@ -1211,6 +1346,7 @@ function CampaignSection({ campaigns, lists, niches, onChanged }: { campaigns: C
   const [editingId, setEditingId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sendNote, setSendNote] = useState<string | null>(null);
 
   const reset = () => {
     setName("");
@@ -1220,6 +1356,7 @@ function CampaignSection({ campaigns, lists, niches, onChanged }: { campaigns: C
     setBodyHtml("");
     setEditingId(null);
     setError(null);
+    setSendNote(null);
   };
 
   const startEdit = (c: Campaign) => {
@@ -1252,6 +1389,69 @@ function CampaignSection({ campaigns, lists, niches, onChanged }: { campaigns: C
       await onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save campaign");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doSend = async (c: Campaign) => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    setSendNote(null);
+    try {
+      const res = (await sendCampaign({ data: { id: c.id } })) as SendCampaignResult;
+      if (!res.success) {
+        setError(res.error ?? "Send failed");
+      } else {
+        const label = res.provider === "noop" ? "NoopSender" : res.provider ?? "sender";
+        setSendNote(
+          `${label} accepted ${res.pending ?? 0} recipient(s) — ${res.pending ?? 0} pending outbox row(s). No email was actually delivered (provider swap is a later step).` +
+            ((res.failed ?? 0) > 0 ? ` ${res.failed} failed.` : "")
+        );
+      }
+      await onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Send failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Form-level Send: save the draft first (upsert returns the campaign id), then
+  // queue the send through the seam — same path as the row-level Send button.
+  const doSendFromForm = async () => {
+    if (!name.trim() || busy) return;
+    setBusy(true);
+    setError(null);
+    setSendNote(null);
+    try {
+      const saved = await upsertCampaign({
+        data: {
+          id: editingId,
+          name: name.trim(),
+          nicheId: nicheId || null,
+          listId: listId || null,
+          subject: subject.trim() || null,
+          bodyHtml: bodyHtml || null,
+        },
+      });
+      const cid = (saved as { id?: string }).id ?? editingId;
+      if (!cid) throw new Error("Could not resolve campaign id after saving");
+      const res = (await sendCampaign({ data: { id: cid } })) as SendCampaignResult;
+      if (!res.success) {
+        setError(res.error ?? "Send failed");
+      } else {
+        const label = res.provider === "noop" ? "NoopSender" : res.provider ?? "sender";
+        setSendNote(
+          `${label} accepted ${res.pending ?? 0} recipient(s) — ${res.pending ?? 0} pending outbox row(s). No email was actually delivered (provider swap is a later step).` +
+            ((res.failed ?? 0) > 0 ? ` ${res.failed} failed.` : "")
+        );
+      }
+      reset();
+      await onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Send failed");
     } finally {
       setBusy(false);
     }
@@ -1306,9 +1506,20 @@ function CampaignSection({ campaigns, lists, niches, onChanged }: { campaigns: C
           {editingId && (
             <button type="button" onClick={reset} className={btnGhost}>Cancel edit</button>
           )}
-          <button type="button" disabled className={btnPrimary} title={SEND_TOOLTIP}>Send</button>
-          <span className="text-xs text-gray-500">Send is disabled — no email provider connected yet.</span>
+          <button
+            type="button"
+            onClick={doSendFromForm}
+            disabled={busy || !name.trim()}
+            className={btnPrimary}
+            title={SEND_TOOLTIP}
+          >
+            {busy ? "Sending…" : "Send"}
+          </button>
+          <span className="text-xs text-gray-500">
+            Send queues pending outbox rows via the NoopSender seam — no network delivery until a real provider is connected.
+          </span>
         </div>
+        {sendNote && <p className="text-xs text-green-400">{sendNote}</p>}
       </form>
 
       <div className="mt-6 glass-card rounded-xl overflow-x-auto">
@@ -1322,6 +1533,8 @@ function CampaignSection({ campaigns, lists, niches, onChanged }: { campaigns: C
                 <th className="px-4 py-3">List</th>
                 <th className="px-4 py-3">Niche</th>
                 <th className="px-4 py-3">Subject</th>
+                <th className="px-4 py-3">Opens</th>
+                <th className="px-4 py-3">Clicks</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
@@ -1333,6 +1546,8 @@ function CampaignSection({ campaigns, lists, niches, onChanged }: { campaigns: C
                   <td className="px-4 py-3 text-gray-400">{c.list_name ?? "—"}</td>
                   <td className="px-4 py-3 text-gray-400">{c.niche_name ?? "—"}</td>
                   <td className="px-4 py-3 text-gray-300">{c.subject ?? "—"}</td>
+                  <td className="px-4 py-3 text-gray-400" title="Open counter — a future tracking pixel bumps this">{c.opens}</td>
+                  <td className="px-4 py-3 text-gray-400" title="Click counter — a future tracking pixel bumps this">{c.clicks}</td>
                   <td className="px-4 py-3"><StatusPill status={c.status} /></td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap items-center justify-end gap-2">
@@ -1346,7 +1561,14 @@ function CampaignSection({ campaigns, lists, niches, onChanged }: { campaigns: C
                           Mark sent (manual)
                         </button>
                       )}
-                      <button disabled className={btnPrimary} title={SEND_TOOLTIP}>Send</button>
+                      <button
+                        onClick={() => doSend(c)}
+                        disabled={busy || c.status === "sent"}
+                        className={btnPrimary}
+                        title={c.status === "sent" ? "Already sent" : SEND_TOOLTIP}
+                      >
+                        Send
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -1375,7 +1597,7 @@ function Email() {
     }
   };
 
-  const { kpis } = data;
+  const { kpis, growth } = data;
 
   return (
     <div className="flex flex-col">
@@ -1400,6 +1622,20 @@ function Email() {
             <KpiCard label="Active Lists" value={String(kpis.activeLists)} sub="email lists running" />
             <KpiCard label="Draft Campaigns" value={String(kpis.draftCampaigns)} sub="not yet sent" />
             <KpiCard label="Sent Campaigns" value={String(kpis.sentCampaigns)} sub="newsletters delivered" />
+          </div>
+
+          {/* List growth — subscribers by month (last 6 months) */}
+          <div className="mt-6 glass-card rounded-xl p-5">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <h3 className="text-sm font-semibold text-white">Subscribers by month</h3>
+                <p className="mt-0.5 text-xs text-gray-400">Last 6 months of list growth (by subscribers.created_at)</p>
+              </div>
+              <span className="text-xs text-gray-500">{growth.reduce((a, g) => a + g.count, 0)} new subscribers in period</span>
+            </div>
+            <div className="mt-4">
+              <GrowthBars growth={growth} />
+            </div>
           </div>
         </div>
       </section>

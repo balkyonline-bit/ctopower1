@@ -192,6 +192,10 @@ await client.query(`CREATE TABLE IF NOT EXISTS email_sends (
   created_at TIMESTAMPTZ DEFAULT now(),
   UNIQUE (subscriber_id, sequence_step_id)
 )`);
+// Chunk 3 — per-campaign open/click counter placeholders (aggregate of email_sends.opens/clicks
+// when a tracking pixel goes live; this is the per-campaign rollup column).
+await client.query(`ALTER TABLE email_campaigns ADD COLUMN IF NOT EXISTS opens INTEGER NOT NULL DEFAULT 0`);
+await client.query(`ALTER TABLE email_campaigns ADD COLUMN IF NOT EXISTS clicks INTEGER NOT NULL DEFAULT 0`);
 await client.query(`CREATE INDEX IF NOT EXISTS idx_subscribers_status       ON subscribers (status)`);
 await client.query(`CREATE INDEX IF NOT EXISTS idx_subscriber_lists_list    ON subscriber_lists (list_id)`);
 await client.query(`CREATE INDEX IF NOT EXISTS idx_email_sends_subscriber   ON email_sends (subscriber_id)`);
