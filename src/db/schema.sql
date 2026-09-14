@@ -243,6 +243,8 @@ CREATE TABLE IF NOT EXISTS email_campaigns (
   status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'scheduled', 'sent', 'cancelled')),
   scheduled_at TIMESTAMPTZ,
   sent_at TIMESTAMPTZ,
+  opens INTEGER NOT NULL DEFAULT 0,           -- per-campaign open counter (future tracking pixel)
+  clicks INTEGER NOT NULL DEFAULT 0,          -- per-campaign click counter (future tracking pixel)
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
