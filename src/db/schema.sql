@@ -275,3 +275,42 @@ CREATE INDEX IF NOT EXISTS idx_subscribers_status       ON subscribers (status);
 CREATE INDEX IF NOT EXISTS idx_subscriber_lists_list    ON subscriber_lists (list_id);
 CREATE INDEX IF NOT EXISTS idx_email_sends_subscriber   ON email_sends (subscriber_id);
 CREATE INDEX IF NOT EXISTS idx_email_sends_campaign     ON email_sends (campaign_id);
+
+-- Automation Engine: scheduled workflows + visual step builder + run history
+CREATE TABLE IF NOT EXISTS automation_workflows (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  niche_id UUID REFERENCES niche_profiles(id),
+  description TEXT,
+  status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'paused')),
+  trigger_type TEXT DEFAULT 'manual' CHECK (trigger_type IN ('manual', 'schedule', 'event')),
+  schedule_cron TEXT,                        -- persisted only; cron parsing/daemon is out of scope
+  last_run_at TIMESTAMPTZ,
+  next_run_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS automation_steps (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  workflow_id UUID NOT NULL REFERENCES automation_workflows(id) ON DELETE CASCADE,
+  position INTEGER NOT NULL DEFAULT 0,
+  type TEXT NOT NULL DEFAULT 'create_article'
+    CHECK (type IN ('create_article', 'create_social_post', 'send_email', 'http_request', 'delay')),
+  config JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE (workflow_id, position)
+);
+
+CREATE TABLE IF NOT EXISTS automation_runs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  workflow_id UUID NOT NULL REFERENCES automation_workflows(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'running' CHECK (status IN ('running', 'succeeded', 'failed', 'skipped')),
+  started_at TIMESTAMPTZ DEFAULT now(),
+  finished_at TIMESTAMPTZ,
+  log TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_automation_steps_workflow ON automation_steps (workflow_id);
+CREATE INDEX IF NOT EXISTS idx_automation_runs_workflow   ON automation_runs (workflow_id);

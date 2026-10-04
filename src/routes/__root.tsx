@@ -56,6 +56,7 @@ function NavBar() {
   const NAV_LINKS = [
     { name: t("nav.dashboard"), href: "/dashboard" },
     { name: t("nav.analytics"), href: "/analytics" },
+    { name: t("nav.automation"), href: "/automation" },
     { name: t("nav.gallery"), href: "/gallery" },
     { name: t("nav.social"), href: "/social" },
     { name: "📧 Email", href: "/email" },
