@@ -276,12 +276,13 @@ function GalleryPage() {
 }
 
 function EmptyState({ message }: { message: string }) {
+  const { t } = useTranslation();
   return (
     <div className="py-20 text-center">
       <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-indigo-500/10 text-4xl">
         🎨
       </div>
-      <h2 className="text-xl font-semibold text-white">No content yet</h2>
+      <h2 className="text-xl font-semibold text-white">{t("gallery.noContentYet")}</h2>
       <p className="mt-2 text-gray-400 max-w-md mx-auto">{message}</p>
     </div>
   );

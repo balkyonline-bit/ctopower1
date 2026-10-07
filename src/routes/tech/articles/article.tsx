@@ -1,4 +1,5 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import { getArticle } from "~/data/articles";
 
 export const Route = createFileRoute("/tech/articles/article")({
@@ -61,6 +62,7 @@ function formatDate(iso: string): string {
 }
 
 function ArticleDetail() {
+  const { t } = useTranslation();
   const article = Route.useLoaderData();
 
   return (
@@ -106,7 +108,7 @@ function ArticleDetail() {
           <div>
             <p className="text-sm font-medium">EmpireAI Tech Team</p>
             <p className="text-xs text-gray-500">
-              Hands-on testing & research by our AI-powered editorial team
+              {t("tech.bylineRole")}
             </p>
           </div>
         </div>
@@ -120,27 +122,23 @@ function ArticleDetail() {
       {/* Affiliate disclosure */}
       <div className="mt-12 rounded-xl border border-gray-800 bg-gray-900/60 p-5">
         <p className="text-xs leading-relaxed text-gray-500">
-          <strong className="text-gray-400">Affiliate Disclosure:</strong>{" "}
-          Some links in this article may be affiliate links. If you click and
-          make a purchase, we may earn a commission at no additional cost to
-          you. We only recommend tools we've tested and believe deliver genuine
-          value. Our reviews are written independently and are never influenced
-          by affiliate partnerships.
+          <strong className="text-gray-400">{t("tech.disclosureLabel")}</strong>{" "}
+          {t("tech.disclosure")}
         </p>
       </div>
 
       {/* Related articles placeholder */}
       <section className="mt-16 border-t border-gray-800 pt-12">
-        <h2 className="text-xl font-bold">Related Articles</h2>
+        <h2 className="text-xl font-bold">{t("tech.relatedArticles")}</h2>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           <div className="rounded-xl border border-gray-800 bg-gray-900/40 p-5">
             <p className="text-sm font-medium text-gray-500">
-              Coming soon: ChatGPT vs Claude vs Gemini — Honest Hands-On Comparison
+              {t("tech.relatedSoon1")}
             </p>
           </div>
           <div className="rounded-xl border border-gray-800 bg-gray-900/40 p-5">
             <p className="text-sm font-medium text-gray-500">
-              Coming soon: 10 No-Code Automations That Save 10+ Hours Per Week
+              {t("tech.relatedSoon2")}
             </p>
           </div>
         </div>
@@ -154,6 +152,7 @@ function ArticleDetail() {
 /* ------------------------------------------------------------------ */
 
 function ArticleContent() {
+  const { t } = useTranslation();
   return (
     <div className="space-y-6 text-base leading-relaxed text-gray-300">
       {/* Intro */}
@@ -210,16 +209,16 @@ function ArticleContent() {
       </p>
       <ul className="ml-5 list-disc space-y-1.5 text-gray-400">
         <li>
-          <strong className="text-gray-300">Pricing:</strong> $49/month
+          <strong className="text-gray-300">{t("tech.label.pricing")}</strong> $49/month
           (Creator), $125/month (Pro, includes Brand Voice &amp; campaigns)
         </li>
         <li>
-          <strong className="text-gray-300">Best for:</strong> Businesses
+          <strong className="text-gray-300">{t("tech.label.bestFor")}</strong> Businesses
           producing regular blog posts, social content, ad copy, and email
           sequences
         </li>
         <li>
-          <strong className="text-gray-300">Honest take:</strong> Expensive if
+          <strong className="text-gray-300">{t("tech.label.honestTake")}</strong> Expensive if
           you're just writing the occasional blog post. But if content marketing
           is a core growth channel and you're spending 10+ hours/week on it,
           Jasper easily pays for itself. The Brand Voice feature is genuinely
@@ -227,7 +226,7 @@ function ArticleContent() {
           custom prompt.
         </li>
         <li>
-          <strong className="text-gray-300">Skip if:</strong> You're a solo
+          <strong className="text-gray-300">{t("tech.label.skipIf")}</strong> You're a solo
           founder who writes one article per month. ChatGPT or Claude will serve
           you fine for a fraction of the cost.
         </li>
@@ -247,16 +246,16 @@ function ArticleContent() {
       </p>
       <ul className="ml-5 list-disc space-y-1.5 text-gray-400">
         <li>
-          <strong className="text-gray-300">Pricing:</strong> Free (limited),
+          <strong className="text-gray-300">{t("tech.label.pricing")}</strong> Free (limited),
           $20/month (Pro), $30/month (Team)
         </li>
         <li>
-          <strong className="text-gray-300">Best for:</strong> Business
+          <strong className="text-gray-300">{t("tech.label.bestFor")}</strong> Business
           strategy, long-form research, market analysis, and content that
           requires deep thinking rather than quick generation
         </li>
         <li>
-          <strong className="text-gray-300">Honest take:</strong> Not a
+          <strong className="text-gray-300">{t("tech.label.honestTake")}</strong> Not a
           dedicated marketing tool — no templates, no scheduling, no
           integrations. But as a thinking partner and first-draft engine, it's
           unmatched. We use it for outlining articles, analyzing competitors,
@@ -264,7 +263,7 @@ function ArticleContent() {
           AI right now.
         </li>
         <li>
-          <strong className="text-gray-300">Skip if:</strong> You need a
+          <strong className="text-gray-300">{t("tech.label.skipIf")}</strong> You need a
           turnkey content machine with built-in publishing. Pair Claude with a
           tool like Jasper or a human editor.
         </li>
@@ -283,16 +282,16 @@ function ArticleContent() {
       </p>
       <ul className="ml-5 list-disc space-y-1.5 text-gray-400">
         <li>
-          <strong className="text-gray-300">Pricing:</strong> Free (GPT-4o
+          <strong className="text-gray-300">{t("tech.label.pricing")}</strong> Free (GPT-4o
           mini), $20/month (Plus), $30/month (Pro with advanced features)
         </li>
         <li>
-          <strong className="text-gray-300">Best for:</strong> Solopreneurs who
+          <strong className="text-gray-300">{t("tech.label.bestFor")}</strong> Solopreneurs who
           want one tool for writing, brainstorming, quick research, data
           analysis, and light coding
         </li>
         <li>
-          <strong className="text-gray-300">Honest take:</strong> The breadth is
+          <strong className="text-gray-300">{t("tech.label.honestTake")}</strong> The breadth is
           the selling point. ChatGPT won't beat specialized tools at their
           specific jobs, but for a small business owner who needs to do a little
           of everything, it's the obvious starting point. The free tier is
@@ -300,7 +299,7 @@ function ArticleContent() {
           file uploads.
         </li>
         <li>
-          <strong className="text-gray-300">Skip if:</strong> You need
+          <strong className="text-gray-300">{t("tech.label.skipIf")}</strong> You need
           brand-consistent output at scale. ChatGPT's default voice is
           identifiable; it takes prompting effort to sound like your brand.
         </li>
@@ -324,16 +323,16 @@ function ArticleContent() {
       </p>
       <ul className="ml-5 list-disc space-y-1.5 text-gray-400">
         <li>
-          <strong className="text-gray-300">Pricing:</strong> Free, $15/month
+          <strong className="text-gray-300">{t("tech.label.pricing")}</strong> Free, $15/month
           (Pro, includes Magic Studio &amp; Brand Kit), $30/month (Teams)
         </li>
         <li>
-          <strong className="text-gray-300">Best for:</strong> Business owners
+          <strong className="text-gray-300">{t("tech.label.bestFor")}</strong> Business owners
           who create their own marketing materials — social graphics,
           presentations, flyers, simple ads
         </li>
         <li>
-          <strong className="text-gray-300">Honest take:</strong> Canva Pro at
+          <strong className="text-gray-300">{t("tech.label.honestTake")}</strong> Canva Pro at
           $15/month is arguably the highest-ROI subscription for a small
           business. The AI features save hours on design tasks that used to
           require a freelancer. The quality isn't professional-agency level, but
@@ -341,7 +340,7 @@ function ArticleContent() {
           hour setting up your Brand Kit.
         </li>
         <li>
-          <strong className="text-gray-300">Skip if:</strong> You already have a
+          <strong className="text-gray-300">{t("tech.label.skipIf")}</strong> You already have a
           designer or use Adobe Creative Cloud. Canva complements, doesn't
           replace, professional design workflows.
         </li>
@@ -360,16 +359,16 @@ function ArticleContent() {
       </p>
       <ul className="ml-5 list-disc space-y-1.5 text-gray-400">
         <li>
-          <strong className="text-gray-300">Pricing:</strong> Free, $10/month
+          <strong className="text-gray-300">{t("tech.label.pricing")}</strong> Free, $10/month
           (Premium)
         </li>
         <li>
-          <strong className="text-gray-300">Best for:</strong> Small businesses
+          <strong className="text-gray-300">{t("tech.label.bestFor")}</strong> Small businesses
           already using Adobe products who want quick social media and marketing
           assets without opening Photoshop
         </li>
         <li>
-          <strong className="text-gray-300">Honest take:</strong> If you have
+          <strong className="text-gray-300">{t("tech.label.honestTake")}</strong> If you have
           zero Adobe investment, Canva Pro is the better choice — more
           templates, better collaboration, larger community. If you're already
           paying for Creative Cloud, Express Premium is included in many plans.
@@ -377,7 +376,7 @@ function ArticleContent() {
           Adobe trained it on licensed content.
         </li>
         <li>
-          <strong className="text-gray-300">Skip if:</strong> You're not in the
+          <strong className="text-gray-300">{t("tech.label.skipIf")}</strong> You're not in the
           Adobe ecosystem. Canva offers more for less.
         </li>
       </ul>
@@ -400,24 +399,24 @@ function ArticleContent() {
       </p>
       <ul className="ml-5 list-disc space-y-1.5 text-gray-400">
         <li>
-          <strong className="text-gray-300">Pricing:</strong> Free (100
+          <strong className="text-gray-300">{t("tech.label.pricing")}</strong> Free (100
           tasks/month), $19.99/month (Starter, 750 tasks), $49/month
           (Professional, 2K tasks)
         </li>
         <li>
-          <strong className="text-gray-300">Best for:</strong> Businesses that
+          <strong className="text-gray-300">{t("tech.label.bestFor")}</strong> Businesses that
           use multiple SaaS tools and need them to talk to each other without
           manual data entry
         </li>
         <li>
-          <strong className="text-gray-300">Honest take:</strong> Zapier's
+          <strong className="text-gray-300">{t("tech.label.honestTake")}</strong> Zapier's
           premium pricing adds up fast — multi-step Zaps consume tasks quickly.
           Audit your automations monthly to avoid paying for Zaps that could be
           handled by native integrations. That said, for non-technical teams,
           the time saved usually outweighs the cost.
         </li>
         <li>
-          <strong className="text-gray-300">Skip if:</strong> You only need
+          <strong className="text-gray-300">{t("tech.label.skipIf")}</strong> You only need
           simple, single-app automations. Most SaaS tools now have built-in
           automation that handles 80% of common use cases.
         </li>
@@ -435,23 +434,23 @@ function ArticleContent() {
       </p>
       <ul className="ml-5 list-disc space-y-1.5 text-gray-400">
         <li>
-          <strong className="text-gray-300">Pricing:</strong> Free (1,000
+          <strong className="text-gray-300">{t("tech.label.pricing")}</strong> Free (1,000
           ops/month), $9/month (Core, 10K ops), $29/month (Pro, 40K ops)
         </li>
         <li>
-          <strong className="text-gray-300">Best for:</strong> Businesses that
+          <strong className="text-gray-300">{t("tech.label.bestFor")}</strong> Businesses that
           need complex, multi-step automations with conditional logic and high
           monthly volumes
         </li>
         <li>
-          <strong className="text-gray-300">Honest take:</strong> If you can
+          <strong className="text-gray-300">{t("tech.label.honestTake")}</strong> If you can
           invest 2-3 hours learning the visual builder, Make will save you
           hundreds per year vs Zapier. The free tier is generous. The biggest
           downside: fewer native integrations than Zapier, so check your stack
           before committing.
         </li>
         <li>
-          <strong className="text-gray-300">Skip if:</strong> You want
+          <strong className="text-gray-300">{t("tech.label.skipIf")}</strong> You want
           one-click setup and don't want to think about automation logic. Zapier
           is simpler.
         </li>
@@ -475,23 +474,23 @@ function ArticleContent() {
       </p>
       <ul className="ml-5 list-disc space-y-1.5 text-gray-400">
         <li>
-          <strong className="text-gray-300">Pricing:</strong> Free CRM, $20/month
+          <strong className="text-gray-300">{t("tech.label.pricing")}</strong> Free CRM, $20/month
           (Marketing Hub Starter), $15/month (Sales Hub Starter)
         </li>
         <li>
-          <strong className="text-gray-300">Best for:</strong> Service
+          <strong className="text-gray-300">{t("tech.label.bestFor")}</strong> Service
           businesses, B2B companies, and anyone who needs to track leads through
           a pipeline
         </li>
         <li>
-          <strong className="text-gray-300">Honest take:</strong> The free CRM
+          <strong className="text-gray-300">{t("tech.label.honestTake")}</strong> The free CRM
           is the best in the market — no contest. The paid tiers get expensive
           fast (Marketing Hub Professional is $890/month), but the free CRM
           alone provides enormous value. Start there; only upgrade when you
           genuinely outgrow it.
         </li>
         <li>
-          <strong className="text-gray-300">Skip if:</strong> You run a
+          <strong className="text-gray-300">{t("tech.label.skipIf")}</strong> You run a
           high-volume ecommerce business and need deep Shopify/WooCommerce
           integration. Consider a specialized ecommerce CRM instead.
         </li>
@@ -515,24 +514,24 @@ function ArticleContent() {
       </p>
       <ul className="ml-5 list-disc space-y-1.5 text-gray-400">
         <li>
-          <strong className="text-gray-300">Pricing:</strong> Free (up to 10K
+          <strong className="text-gray-300">{t("tech.label.pricing")}</strong> Free (up to 10K
           subscribers), $29/month (Creator, 1K subscribers), scaling with list
           size
         </li>
         <li>
-          <strong className="text-gray-300">Best for:</strong> Bloggers,
+          <strong className="text-gray-300">{t("tech.label.bestFor")}</strong> Bloggers,
           newsletter writers, course creators, and anyone building an
           audience-first business
         </li>
         <li>
-          <strong className="text-gray-300">Honest take:</strong> If your
+          <strong className="text-gray-300">{t("tech.label.honestTake")}</strong> If your
           business model revolves around content and email sequences, ConvertKit
           is the best-in-class. The free plan's 10K subscriber limit is
           exceptional. The trade-off: fewer ecommerce features than Mailchimp or
           Klaviyo.
         </li>
         <li>
-          <strong className="text-gray-300">Skip if:</strong> You need advanced
+          <strong className="text-gray-300">{t("tech.label.skipIf")}</strong> You need advanced
           ecommerce automations (abandoned cart, product recommendations). Look
           at Klaviyo.
         </li>
@@ -550,16 +549,16 @@ function ArticleContent() {
       </p>
       <ul className="ml-5 list-disc space-y-1.5 text-gray-400">
         <li>
-          <strong className="text-gray-300">Pricing:</strong> Free (500
+          <strong className="text-gray-300">{t("tech.label.pricing")}</strong> Free (500
           contacts, limited sends), $13/month (Essentials, 500 contacts),
           $20/month (Standard)
         </li>
         <li>
-          <strong className="text-gray-300">Best for:</strong> Small businesses
+          <strong className="text-gray-300">{t("tech.label.bestFor")}</strong> Small businesses
           that want email + basic website + social scheduling in one platform
         </li>
         <li>
-          <strong className="text-gray-300">Honest take:</strong> Mailchimp's
+          <strong className="text-gray-300">{t("tech.label.honestTake")}</strong> Mailchimp's
           breadth is impressive, but each individual feature is "good enough"
           rather than best-in-class. The email deliverability is solid, the
           templates are beautiful, and the reporting is clear. The free tier is
@@ -567,7 +566,7 @@ function ArticleContent() {
           500 contacts.
         </li>
         <li>
-          <strong className="text-gray-300">Skip if:</strong> You need advanced
+          <strong className="text-gray-300">{t("tech.label.skipIf")}</strong> You need advanced
           automation or a pure focus on email. ConvertKit or ActiveCampaign may
           suit you better.
         </li>
@@ -581,18 +580,18 @@ function ArticleContent() {
         <table className="w-full min-w-[600px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-gray-700 text-left">
-              <th className="py-3 pr-4 font-semibold text-gray-300">Tool</th>
+              <th className="py-3 pr-4 font-semibold text-gray-300">{t("tech.table.tool")}</th>
               <th className="py-3 pr-4 font-semibold text-gray-300">
-                Category
+                {t("tech.table.category")}
               </th>
               <th className="py-3 pr-4 font-semibold text-gray-300">
-                Starting Price
+                {t("tech.table.startingPrice")}
               </th>
               <th className="py-3 pr-4 font-semibold text-gray-300">
-                Free Tier
+                {t("tech.table.freeTier")}
               </th>
               <th className="py-3 font-semibold text-gray-300">
-                Best For
+                {t("tech.table.bestFor")}
               </th>
             </tr>
           </thead>

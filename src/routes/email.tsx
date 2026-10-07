@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "~/db";
 import { getEmailSender } from "~/services/email";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 // ── Types ──
 
@@ -632,6 +633,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function StatusPill({ status }: { status: string }) {
+  const { t } = useTranslation();
   let color = "bg-yellow-900/60 text-yellow-400 border-yellow-500/30";
   if (status === "subscribed" || status === "sent" || status === "active")
     color = "bg-green-900/60 text-green-400 border-green-500/30";
@@ -640,7 +642,7 @@ function StatusPill({ status }: { status: string }) {
   else if (status === "unconfirmed" || status === "draft") color = "bg-yellow-900/60 text-yellow-400 border-yellow-500/30";
   return (
     <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${color}`}>
-      {status}
+      {t(`status.${status}`, { defaultValue: status })}
     </span>
   );
 }
@@ -681,7 +683,8 @@ function KpiCard({ label, value, sub }: { label: string; value: string; sub?: st
 // ── Subscribers-by-month bar chart (lightweight CSS, mirrors monetization's MonthlyBars) ──
 
 function GrowthBars({ growth }: { growth: GrowthPoint[] }) {
-  if (growth.length === 0) return <EmptyHint text="No subscribers recorded yet." />;
+  const { t } = useTranslation();
+  if (growth.length === 0) return <EmptyHint text={t("email.noGrowth")} />;
   const max = Math.max(...growth.map((g) => g.count), 1);
   return (
     <div className="space-y-2">
@@ -712,6 +715,7 @@ interface SendCampaignResult {
 // ── Lists section ──
 
 function ListSection({ lists, niches, onChanged }: { lists: List[]; niches: Niche[]; onChanged: () => void }) {
+  const { t } = useTranslation();
   const [name, setName] = useState("");
   const [nicheId, setNicheId] = useState("");
   const [description, setDescription] = useState("");
@@ -747,7 +751,7 @@ function ListSection({ lists, niches, onChanged }: { lists: List[]; niches: Nich
       reset();
       await onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save list");
+      setError(err instanceof Error ? err.message : t("email.lists.errorSave"));
     } finally {
       setBusy(false);
     }
@@ -759,53 +763,53 @@ function ListSection({ lists, niches, onChanged }: { lists: List[]; niches: Nich
   };
 
   const remove = async (l: List) => {
-    if (!confirm(`Delete list "${l.name}"? This removes ${l.subscriber_count} list membership(s) but not the subscribers themselves.`)) return;
+    if (!confirm(t("email.lists.confirmDelete", { name: l.name, n: l.subscriber_count }))) return;
     await deleteList({ data: l.id });
     await onChanged();
   };
 
   return (
-    <Section title="📋 Email Lists" description="Mailing lists / groups, scoped to a niche when useful. Subscribers join lists via subscriber_lists membership.">
+    <Section title={t("email.lists.title")} description={t("email.lists.desc")}>
       <form onSubmit={submit} className="glass-card rounded-xl p-5 space-y-4">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Field label="List name *">
-            <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="Weekly newsletter" required />
+          <Field label={t("email.lists.listName")}>
+            <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder={t("email.lists.listNamePlaceholder")} required />
           </Field>
-          <Field label="Niche">
+          <Field label={t("common.niche")}>
             <select className={inputCls} value={nicheId} onChange={(e) => setNicheId(e.target.value)}>
-              <option value="">— none —</option>
+              <option value="">{t("common.none")}</option>
               {niches.map((n) => (
                 <option key={n.id} value={n.id}>{n.niche_name}</option>
               ))}
             </select>
           </Field>
-          <Field label="Description">
-            <input className={inputCls} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What this list is for" />
+          <Field label={t("common.description")}>
+            <input className={inputCls} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("email.lists.listDescPlaceholder")} />
           </Field>
         </div>
         <ErrorNote error={error} />
         <div className="flex items-center gap-3">
           <button type="submit" disabled={busy || !name.trim()} className={btnPrimary}>
-            {busy ? "Saving…" : editingId ? "Update List" : "Create List"}
+            {busy ? t("common.saving") : editingId ? t("email.lists.update") : t("email.lists.create")}
           </button>
           {editingId && (
-            <button type="button" onClick={reset} className={btnGhost}>Cancel edit</button>
+            <button type="button" onClick={reset} className={btnGhost}>{t("common.cancelEdit")}</button>
           )}
         </div>
       </form>
 
       <div className="mt-4 glass-card rounded-xl overflow-x-auto">
         {lists.length === 0 ? (
-          <EmptyHint text="No lists yet — create your first list above." />
+          <EmptyHint text={t("email.lists.empty")} />
         ) : (
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-gray-800 text-xs uppercase tracking-wider text-gray-500">
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Niche</th>
-                <th className="px-4 py-3">Subscribers</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+                <th className="px-4 py-3">{t("common.col.name")}</th>
+                <th className="px-4 py-3">{t("common.niche")}</th>
+                <th className="px-4 py-3">{t("analytics.cols.subscribers")}</th>
+                <th className="px-4 py-3">{t("common.col.status")}</th>
+                <th className="px-4 py-3 text-right">{t("common.col.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -818,14 +822,14 @@ function ListSection({ lists, niches, onChanged }: { lists: List[]; niches: Nich
                     <div className="flex items-center gap-2">
                       <StatusPill status={l.status} />
                       <button onClick={() => toggle(l)} className="text-xs text-gray-500 hover:text-gray-300">
-                        {l.status === "active" ? "Pause" : "Activate"}
+                        {l.status === "active" ? t("monetization.pause") : t("monetization.activate")}
                       </button>
                     </div>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => startEdit(l)} className={btnGhost}>Edit</button>
-                      <button onClick={() => remove(l)} className={btnDanger}>Delete</button>
+                      <button onClick={() => startEdit(l)} className={btnGhost}>{t("common.edit")}</button>
+                      <button onClick={() => remove(l)} className={btnDanger}>{t("common.delete")}</button>
                     </div>
                   </td>
                 </tr>
@@ -851,6 +855,7 @@ function SubscriberSection({
   niches: Niche[];
   onChanged: () => void;
 }) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -896,10 +901,10 @@ function SubscriberSection({
     setError(null);
     try {
       await addOne();
-      setNote("Subscriber added (status unconfirmed until verified).");
+      setNote(t("email.subscribers.addedNote"));
       await onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add subscriber");
+      setError(err instanceof Error ? err.message : t("email.subscribers.errorAdd"));
     } finally {
       setBusy(false);
     }
@@ -911,7 +916,7 @@ function SubscriberSection({
       .map((l) => l.trim())
       .filter(Boolean);
     if (emails.length === 0) return;
-    if (!confirm("Only import addresses people explicitly gave you. Scraped or purchased lists are prohibited. Proceed?")) return;
+    if (!confirm(t("email.subscribers.confirmImport"))) return;
     setBusy(true);
     setError(null);
     try {
@@ -921,10 +926,10 @@ function SubscriberSection({
         });
       }
       setImportText("");
-      setNote(`${emails.length} address(es) imported as unconfirmed.`);
+      setNote(t("email.subscribers.importedNote", { n: emails.length }));
       await onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Import failed");
+      setError(err instanceof Error ? err.message : t("email.subscribers.errorImport"));
     } finally {
       setBusy(false);
     }
@@ -932,13 +937,13 @@ function SubscriberSection({
 
   const unsubscribe = async (s: Subscriber) => {
     if (s.status === "unsubscribed") return;
-    if (!confirm(`Unsubscribe ${s.email}? This is a soft opt-out — they stay in the DB but are marked unsubscribed.`)) return;
+    if (!confirm(t("email.subscribers.confirmUnsubscribe", { email: s.email }))) return;
     await unsubscribeSubscriber({ data: s.id });
     await onChanged();
   };
 
   const remove = async (s: Subscriber) => {
-    if (!confirm(`Delete subscriber ${s.email}? This permanently removes them and their list memberships.`)) return;
+    if (!confirm(t("email.subscribers.confirmDelete", { email: s.email }))) return;
     await sqlDeleteSubscriber({ data: s.id });
     await onChanged();
   };
@@ -950,54 +955,54 @@ function SubscriberSection({
   );
 
   return (
-    <Section title="👥 Subscribers" description="Plain opt-in subscribers. New addresses start as unconfirmed until verified — never pre-checked.">
+    <Section title={t("email.subscribers.title")} description={t("email.subscribers.desc")}>
       <form onSubmit={submit} className="glass-card rounded-xl p-5 space-y-4">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Field label="Email *">
+          <Field label={t("email.subscribers.email")}>
             <input className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" type="email" required />
           </Field>
-          <Field label="First name">
-            <input className={inputCls} value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Jane" />
+          <Field label={t("email.subscribers.firstName")}>
+            <input className={inputCls} value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder={t("email.subscribers.firstNamePlaceholder")} />
           </Field>
-          <Field label="Last name">
-            <input className={inputCls} value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Doe" />
+          <Field label={t("email.subscribers.lastName")}>
+            <input className={inputCls} value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder={t("email.subscribers.lastNamePlaceholder")} />
           </Field>
-          <Field label="List">
+          <Field label={t("email.subscribers.list")}>
             <select className={inputCls} value={listId} onChange={(e) => setListId(e.target.value)}>
-              <option value="">— none —</option>
+              <option value="">{t("common.none")}</option>
               {lists.map((l) => (
                 <option key={l.id} value={l.id}>{l.name}</option>
               ))}
             </select>
           </Field>
-          <Field label="Niche">
+          <Field label={t("common.niche")}>
             <select className={inputCls} value={nicheId} onChange={(e) => setNicheId(e.target.value)}>
-              <option value="">— none —</option>
+              <option value="">{t("common.none")}</option>
               {niches.map((n) => (
                 <option key={n.id} value={n.id}>{n.niche_name}</option>
               ))}
             </select>
           </Field>
-          <Field label="Source">
+          <Field label={t("email.subscribers.source")}>
             <select className={inputCls} value={source} onChange={(e) => setSource(e.target.value)}>
-              <option value="manual">Manual</option>
-              <option value="form">Form</option>
-              <option value="lead_magnet">Lead magnet</option>
-              <option value="import">Import</option>
+              <option value="manual">{t("email.source.manual")}</option>
+              <option value="form">{t("email.source.form")}</option>
+              <option value="lead_magnet">{t("email.source.leadMagnet")}</option>
+              <option value="import">{t("email.source.import")}</option>
             </select>
           </Field>
         </div>
         <ErrorNote error={error} />
         <div className="flex flex-wrap items-center gap-3">
           <button type="submit" disabled={busy || !email.trim()} className={btnPrimary}>
-            {busy ? "Saving…" : "Add Subscriber"}
+            {busy ? t("common.saving") : t("email.subscribers.addSubscriber")}
           </button>
           {note && <span className="text-xs text-green-400">{note}</span>}
         </div>
       </form>
 
       <div className="mt-4 glass-card rounded-xl p-5 space-y-3">
-        <Field label="Import addresses (newline-separated)">
+        <Field label={t("email.subscribers.importLabel")}>
           <textarea
             className={contentCls}
             value={importText}
@@ -1006,57 +1011,57 @@ function SubscriberSection({
           />
         </Field>
         <p className="text-xs text-gray-500">
-          Only import addresses people explicitly gave you. Imported addresses are recorded as <code>source=import</code> and start as <strong>unconfirmed</strong>.
+          {t("email.subscribers.importHintP1")} <code>source=import</code> {t("email.subscribers.importHintP2")} <strong>{t("email.subscribers.importHintP3")}</strong>.
         </p>
         <button type="button" onClick={doImport} disabled={busy || !importText.trim()} className={btnGhost}>
-          Import
+          {t("email.subscribers.import")}
         </button>
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
-          <label className="text-xs font-medium uppercase tracking-wider text-gray-500">Filter list</label>
+          <label className="text-xs font-medium uppercase tracking-wider text-gray-500">{t("email.subscribers.filterList")}</label>
           <select
             className="rounded-lg border border-gray-700 bg-gray-900/60 px-3 py-1.5 text-xs text-gray-100 focus:border-indigo-500/50 focus:outline-none"
             value={filterList}
             onChange={(e) => setFilterList(e.target.value)}
           >
-            <option value="">All lists</option>
+            <option value="">{t("common.allLists")}</option>
             {lists.map((l) => (
               <option key={l.id} value={l.id}>{l.name}</option>
             ))}
           </select>
         </div>
         <div className="flex items-center gap-2">
-          <label className="text-xs font-medium uppercase tracking-wider text-gray-500">Filter niche</label>
+          <label className="text-xs font-medium uppercase tracking-wider text-gray-500">{t("email.subscribers.filterNiche")}</label>
           <select
             className="rounded-lg border border-gray-700 bg-gray-900/60 px-3 py-1.5 text-xs text-gray-100 focus:border-indigo-500/50 focus:outline-none"
             value={filterNiche}
             onChange={(e) => setFilterNiche(e.target.value)}
           >
-            <option value="">All niches</option>
+            <option value="">{t("common.allNiches")}</option>
             {niches.map((n) => (
               <option key={n.id} value={n.id}>{n.niche_name}</option>
             ))}
           </select>
         </div>
-        <span className="text-xs text-gray-500">{visible.length} subscriber{visible.length === 1 ? "" : "s"}</span>
+        <span className="text-xs text-gray-500">{visible.length === 1 ? t("email.subscribers.countOne", { n: visible.length }) : t("email.subscribers.countMany", { n: visible.length })}</span>
       </div>
 
       <div className="mt-4 glass-card rounded-xl overflow-x-auto">
         {visible.length === 0 ? (
-          <EmptyHint text="No subscribers match — add one above or change the filters." />
+          <EmptyHint text={t("email.subscribers.empty")} />
         ) : (
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-gray-800 text-xs uppercase tracking-wider text-gray-500">
-                <th className="px-4 py-3">Email</th>
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Lists</th>
-                <th className="px-4 py-3">Niche</th>
-                <th className="px-4 py-3">Source</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+                <th className="px-4 py-3">{t("email.subscribers.email")}</th>
+                <th className="px-4 py-3">{t("common.col.name")}</th>
+                <th className="px-4 py-3">{t("email.subscribers.colLists")}</th>
+                <th className="px-4 py-3">{t("common.niche")}</th>
+                <th className="px-4 py-3">{t("email.subscribers.source")}</th>
+                <th className="px-4 py-3">{t("common.col.status")}</th>
+                <th className="px-4 py-3 text-right">{t("common.col.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -1068,7 +1073,7 @@ function SubscriberSection({
                     {s.lists.length ? s.lists.map((l) => l.name).join(", ") : "—"}
                   </td>
                   <td className="px-4 py-3 text-gray-400">{s.niche_name ?? "—"}</td>
-                  <td className="px-4 py-3 text-gray-400 capitalize">{s.source ?? "manual"}</td>
+                  <td className="px-4 py-3 text-gray-400">{t(`email.source.${s.source ?? "manual"}`, { defaultValue: s.source ?? "manual" })}</td>
                   <td className="px-4 py-3">
                     <StatusPill status={s.status} />
                   </td>
@@ -1078,11 +1083,11 @@ function SubscriberSection({
                         onClick={() => unsubscribe(s)}
                         disabled={s.status === "unsubscribed"}
                         className={btnGhostSm}
-                        title={s.status === "unsubscribed" ? "Already unsubscribed" : "Soft opt-out (keeps the row)"}
+                        title={s.status === "unsubscribed" ? t("email.subscribers.alreadyUnsubscribed") : t("email.subscribers.unsubscribeTitle")}
                       >
-                        Unsubscribe
+                        {t("email.subscribers.unsubscribe")}
                       </button>
-                      <button onClick={() => remove(s)} className={btnDanger}>Delete</button>
+                      <button onClick={() => remove(s)} className={btnDanger}>{t("common.delete")}</button>
                     </div>
                   </td>
                 </tr>
@@ -1097,10 +1102,9 @@ function SubscriberSection({
 
 // ── Sequences section ──
 
-const SEND_TOOLTIP =
-  "Queue a send via the sender seam. No provider is connected yet, so the NoopSender records pending outbox rows — nothing is delivered to a network.";
 
 function StepEditor({ sequence, onEdit, onChanged }: { sequence: Sequence; onEdit: (s: Sequence) => void; onChanged: () => void }) {
+  const { t } = useTranslation();
   const [subject, setSubject] = useState("");
   const [delayDays, setDelayDays] = useState("0");
   const [bodyHtml, setBodyHtml] = useState("");
@@ -1141,14 +1145,14 @@ function StepEditor({ sequence, onEdit, onChanged }: { sequence: Sequence; onEdi
       reset();
       await onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save step");
+      setError(err instanceof Error ? err.message : t("email.sequences.errorSaveStep"));
     } finally {
       setBusy(false);
     }
   };
 
   const remove = async (st: SequenceStep) => {
-    if (!confirm(`Delete step "${st.subject || `#${st.position}`}"? This cannot be undone.`)) return;
+    if (!confirm(t("email.sequences.confirmDeleteStep", { name: st.subject || `#${st.position}` }))) return;
     await deleteSequenceStep({ data: st.id });
     await onChanged();
   };
@@ -1166,10 +1170,10 @@ function StepEditor({ sequence, onEdit, onChanged }: { sequence: Sequence; onEdi
         <div>
           <div className="flex items-center gap-2 flex-wrap">
             <h4 className="font-semibold text-white">{sequence.name}</h4>
-            <button onClick={() => onEdit(sequence)} className={btnGhostSm} title="Edit sequence details">Edit sequence</button>
+            <button onClick={() => onEdit(sequence)} className={btnGhostSm} title={t("email.sequences.editSequenceTitle")}>{t("email.sequences.editSequence")}</button>
           </div>
           <p className="text-xs text-gray-400">
-            <span className="capitalize">{sequence.trigger_type}</span> trigger · {sequence.step_count} step{sequence.step_count === 1 ? "" : "s"} · {sequence.total_delay}d total delay
+            <span>{t(`email.trigger.${sequence.trigger_type}`, { defaultValue: sequence.trigger_type })}</span> {t("email.sequences.triggerSuffix")} · {sequence.step_count} {sequence.step_count === 1 ? t("email.sequences.stepsOne") : t("email.sequences.stepsMany")} · {t("email.sequences.totalDelay", { n: sequence.total_delay })}
             {sequence.niche_name ? ` · ${sequence.niche_name}` : ""}
           </p>
         </div>
@@ -1179,16 +1183,16 @@ function StepEditor({ sequence, onEdit, onChanged }: { sequence: Sequence; onEdi
       {/* Step table */}
       <div className="mt-4 overflow-x-auto rounded-lg border border-gray-800/60">
         {steps.length === 0 ? (
-          <EmptyHint text="No steps yet — add your first step below." />
+          <EmptyHint text={t("email.sequences.noSteps")} />
         ) : (
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-gray-800 text-xs uppercase tracking-wider text-gray-500">
                 <th className="px-3 py-2">#</th>
-                <th className="px-3 py-2">Delay</th>
-                <th className="px-3 py-2">Subject</th>
-                <th className="px-3 py-2">Body</th>
-                <th className="px-3 py-2 text-right">Actions</th>
+                <th className="px-3 py-2">{t("email.sequences.colDelay")}</th>
+                <th className="px-3 py-2">{t("email.sequences.subject")}</th>
+                <th className="px-3 py-2">{t("email.sequences.colBody")}</th>
+                <th className="px-3 py-2 text-right">{t("common.col.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -1202,10 +1206,10 @@ function StepEditor({ sequence, onEdit, onChanged }: { sequence: Sequence; onEdi
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => move(st, "up")} disabled={i === 0} className={btnGhostSm} title="Move up">↑</button>
-                      <button onClick={() => move(st, "down")} disabled={i === steps.length - 1} className={btnGhostSm} title="Move down">↓</button>
-                      <button onClick={() => startEdit(st)} className={btnGhostSm}>Edit</button>
-                      <button onClick={() => remove(st)} className={btnDanger}>Delete</button>
+                      <button onClick={() => move(st, "up")} disabled={i === 0} className={btnGhostSm} title={t("automation.stepEditor.moveUp")}>↑</button>
+                      <button onClick={() => move(st, "down")} disabled={i === steps.length - 1} className={btnGhostSm} title={t("automation.stepEditor.moveDown")}>↓</button>
+                      <button onClick={() => startEdit(st)} className={btnGhostSm}>{t("common.edit")}</button>
+                      <button onClick={() => remove(st)} className={btnDanger}>{t("common.delete")}</button>
                     </div>
                   </td>
                 </tr>
@@ -1218,23 +1222,23 @@ function StepEditor({ sequence, onEdit, onChanged }: { sequence: Sequence; onEdi
       {/* Step form */}
       <form onSubmit={submit} className="mt-4 space-y-3">
         <div className="grid gap-3 sm:grid-cols-[140px_1fr]">
-          <Field label="Delay (days)">
+          <Field label={t("email.sequences.delayDays")}>
             <input type="number" min={0} className={inputCls} value={delayDays} onChange={(e) => setDelayDays(e.target.value)} />
           </Field>
-          <Field label="Subject">
-            <input className={inputCls} value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Step subject line" />
+          <Field label={t("email.sequences.subject")}>
+            <input className={inputCls} value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={t("email.sequences.subjectPlaceholder")} />
           </Field>
         </div>
-        <Field label="Body (HTML)">
-          <textarea className={contentCls} value={bodyHtml} onChange={(e) => setBodyHtml(e.target.value)} placeholder="<p>Step body content…</p>" />
+        <Field label={t("email.sequences.bodyHtml")}>
+          <textarea className={contentCls} value={bodyHtml} onChange={(e) => setBodyHtml(e.target.value)} placeholder={t("email.sequences.bodyHtmlPlaceholder")} />
         </Field>
         <ErrorNote error={error} />
         <div className="flex items-center gap-3">
           <button type="submit" disabled={busy} className={btnPrimary}>
-            {busy ? "Saving…" : editingId ? "Update Step" : "Add Step"}
+            {busy ? t("common.saving") : editingId ? t("email.sequences.updateStep") : t("email.sequences.addStep")}
           </button>
           {editingId && (
-            <button type="button" onClick={reset} className={btnGhost}>Cancel edit</button>
+            <button type="button" onClick={reset} className={btnGhost}>{t("common.cancelEdit")}</button>
           )}
         </div>
       </form>
@@ -1243,6 +1247,7 @@ function StepEditor({ sequence, onEdit, onChanged }: { sequence: Sequence; onEdi
 }
 
 function SequenceSection({ sequences, niches, onChanged }: { sequences: Sequence[]; niches: Niche[]; onChanged: () => void }) {
+  const { t } = useTranslation();
   const [name, setName] = useState("");
   const [nicheId, setNicheId] = useState("");
   const [triggerType, setTriggerType] = useState("manual");
@@ -1281,52 +1286,52 @@ function SequenceSection({ sequences, niches, onChanged }: { sequences: Sequence
       reset();
       await onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save sequence");
+      setError(err instanceof Error ? err.message : t("email.sequences.errorSave"));
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <Section title="🔁 Sequences" description="Automated email sequences (welcome / lead-magnet / manual). Build ordered steps with per-step delays — nothing sends until a provider is connected.">
+    <Section title={t("email.sequences.title")} description={t("email.sequences.desc")}>
       <form onSubmit={submit} className="glass-card rounded-xl p-5 space-y-4">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="Sequence name *">
-            <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="Welcome sequence" required />
+          <Field label={t("email.sequences.name")}>
+            <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder={t("email.sequences.namePlaceholder")} required />
           </Field>
-          <Field label="Niche">
+          <Field label={t("common.niche")}>
             <select className={inputCls} value={nicheId} onChange={(e) => setNicheId(e.target.value)}>
-              <option value="">— none —</option>
+              <option value="">{t("common.none")}</option>
               {niches.map((n) => (
                 <option key={n.id} value={n.id}>{n.niche_name}</option>
               ))}
             </select>
           </Field>
-          <Field label="Trigger type">
+          <Field label={t("email.sequences.triggerType")}>
             <select className={inputCls} value={triggerType} onChange={(e) => setTriggerType(e.target.value)}>
-              <option value="welcome">Welcome</option>
-              <option value="lead_magnet">Lead magnet</option>
-              <option value="manual">Manual</option>
+              <option value="welcome">{t("email.trigger.welcome")}</option>
+              <option value="lead_magnet">{t("email.source.leadMagnet")}</option>
+              <option value="manual">{t("email.source.manual")}</option>
             </select>
           </Field>
-          <Field label="Description">
-            <input className={inputCls} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What this sequence does" />
+          <Field label={t("common.description")}>
+            <input className={inputCls} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("email.sequences.descPlaceholder")} />
           </Field>
         </div>
         <ErrorNote error={error} />
         <div className="flex items-center gap-3">
           <button type="submit" disabled={busy || !name.trim()} className={btnPrimary}>
-            {busy ? "Saving…" : editingId ? "Update Sequence" : "Create Sequence"}
+            {busy ? t("common.saving") : editingId ? t("email.sequences.update") : t("email.sequences.create")}
           </button>
           {editingId && (
-            <button type="button" onClick={reset} className={btnGhost}>Cancel edit</button>
+            <button type="button" onClick={reset} className={btnGhost}>{t("common.cancelEdit")}</button>
           )}
         </div>
       </form>
 
       <div className="mt-6 space-y-4">
         {sequences.length === 0 ? (
-          <EmptyHint text="No sequences yet — create your first sequence above, then build its steps." />
+          <EmptyHint text={t("email.sequences.empty")} />
         ) : (
           sequences.map((s) => <StepEditor key={s.id} sequence={s} onEdit={startEdit} onChanged={onChanged} />)
         )}
@@ -1338,6 +1343,7 @@ function SequenceSection({ sequences, niches, onChanged }: { sequences: Sequence
 // ── Campaigns / Newsletter composer ──
 
 function CampaignSection({ campaigns, lists, niches, onChanged }: { campaigns: Campaign[]; lists: List[]; niches: Niche[]; onChanged: () => void }) {
+  const { t } = useTranslation();
   const [name, setName] = useState("");
   const [nicheId, setNicheId] = useState("");
   const [listId, setListId] = useState("");
@@ -1388,7 +1394,7 @@ function CampaignSection({ campaigns, lists, niches, onChanged }: { campaigns: C
       reset();
       await onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save campaign");
+      setError(err instanceof Error ? err.message : t("email.campaigns.errorSave"));
     } finally {
       setBusy(false);
     }
@@ -1402,17 +1408,17 @@ function CampaignSection({ campaigns, lists, niches, onChanged }: { campaigns: C
     try {
       const res = (await sendCampaign({ data: { id: c.id } })) as SendCampaignResult;
       if (!res.success) {
-        setError(res.error ?? "Send failed");
+        setError(res.error ?? t("email.campaigns.sendFailed"));
       } else {
         const label = res.provider === "noop" ? "NoopSender" : res.provider ?? "sender";
         setSendNote(
-          `${label} accepted ${res.pending ?? 0} recipient(s) — ${res.pending ?? 0} pending outbox row(s). No email was actually delivered (provider swap is a later step).` +
-            ((res.failed ?? 0) > 0 ? ` ${res.failed} failed.` : "")
+          t("email.campaigns.sendNote", { label, pending: res.pending ?? 0 }) +
+            ((res.failed ?? 0) > 0 ? ` ${t("email.campaigns.sendFailedCount", { n: res.failed })}` : "")
         );
       }
       await onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Send failed");
+      setError(err instanceof Error ? err.message : t("email.campaigns.sendFailed"));
     } finally {
       setBusy(false);
     }
@@ -1437,28 +1443,28 @@ function CampaignSection({ campaigns, lists, niches, onChanged }: { campaigns: C
         },
       });
       const cid = (saved as { id?: string }).id ?? editingId;
-      if (!cid) throw new Error("Could not resolve campaign id after saving");
+      if (!cid) throw new Error(t("email.campaigns.errorNoId"));
       const res = (await sendCampaign({ data: { id: cid } })) as SendCampaignResult;
       if (!res.success) {
-        setError(res.error ?? "Send failed");
+        setError(res.error ?? t("email.campaigns.sendFailed"));
       } else {
         const label = res.provider === "noop" ? "NoopSender" : res.provider ?? "sender";
         setSendNote(
-          `${label} accepted ${res.pending ?? 0} recipient(s) — ${res.pending ?? 0} pending outbox row(s). No email was actually delivered (provider swap is a later step).` +
-            ((res.failed ?? 0) > 0 ? ` ${res.failed} failed.` : "")
+          t("email.campaigns.sendNote", { label, pending: res.pending ?? 0 }) +
+            ((res.failed ?? 0) > 0 ? ` ${t("email.campaigns.sendFailedCount", { n: res.failed })}` : "")
         );
       }
       reset();
       await onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Send failed");
+      setError(err instanceof Error ? err.message : t("email.campaigns.sendFailed"));
     } finally {
       setBusy(false);
     }
   };
 
   const markSent = async (c: Campaign) => {
-    if (!confirm(`Mark "${c.name}" as SENT (manual placeholder — no email was actually delivered)?`)) return;
+    if (!confirm(t("email.campaigns.confirmMarkSent", { name: c.name }))) return;
     await setCampaignStatus({ data: { id: c.id, status: "sent" } });
     await onChanged();
   };
@@ -1469,54 +1475,54 @@ function CampaignSection({ campaigns, lists, niches, onChanged }: { campaigns: C
   };
 
   return (
-    <Section title="📨 Campaigns / Newsletter Composer" description="One-off newsletters. Compose a draft targeting a list now — real sending is a later provider-integration step.">
+    <Section title={t("email.campaigns.title")} description={t("email.campaigns.desc")}>
       <form onSubmit={submit} className="glass-card rounded-xl p-5 space-y-4">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="Campaign name *">
-            <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="October newsletter" required />
+          <Field label={t("email.campaigns.name")}>
+            <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder={t("email.campaigns.namePlaceholder")} required />
           </Field>
-          <Field label="Niche">
+          <Field label={t("common.niche")}>
             <select className={inputCls} value={nicheId} onChange={(e) => setNicheId(e.target.value)}>
-              <option value="">— none —</option>
+              <option value="">{t("common.none")}</option>
               {niches.map((n) => (
                 <option key={n.id} value={n.id}>{n.niche_name}</option>
               ))}
             </select>
           </Field>
-          <Field label="Target list">
+          <Field label={t("email.campaigns.targetList")}>
             <select className={inputCls} value={listId} onChange={(e) => setListId(e.target.value)}>
-              <option value="">— none —</option>
+              <option value="">{t("common.none")}</option>
               {lists.map((l) => (
                 <option key={l.id} value={l.id}>{l.name}</option>
               ))}
             </select>
           </Field>
-          <Field label="Subject">
-            <input className={inputCls} value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject line" />
+          <Field label={t("email.sequences.subject")}>
+            <input className={inputCls} value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={t("email.campaigns.subjectPlaceholder")} />
           </Field>
         </div>
-        <Field label="Body (HTML)">
-          <textarea className={contentCls} value={bodyHtml} onChange={(e) => setBodyHtml(e.target.value)} placeholder="<h1>Hi there!</h1><p>Your newsletter content…</p>" />
+        <Field label={t("email.sequences.bodyHtml")}>
+          <textarea className={contentCls} value={bodyHtml} onChange={(e) => setBodyHtml(e.target.value)} placeholder={t("email.campaigns.bodyHtmlPlaceholder")} />
         </Field>
         <ErrorNote error={error} />
         <div className="flex flex-wrap items-center gap-3">
           <button type="submit" disabled={busy || !name.trim()} className={btnPrimary}>
-            {busy ? "Saving…" : editingId ? "Update Campaign" : "Save Draft"}
+            {busy ? t("common.saving") : editingId ? t("email.campaigns.update") : t("email.campaigns.saveDraft")}
           </button>
           {editingId && (
-            <button type="button" onClick={reset} className={btnGhost}>Cancel edit</button>
+            <button type="button" onClick={reset} className={btnGhost}>{t("common.cancelEdit")}</button>
           )}
           <button
             type="button"
             onClick={doSendFromForm}
             disabled={busy || !name.trim()}
             className={btnPrimary}
-            title={SEND_TOOLTIP}
+            title={t("email.campaigns.sendTooltip")}
           >
-            {busy ? "Sending…" : "Send"}
+            {busy ? t("email.campaigns.sending") : t("email.campaigns.send")}
           </button>
           <span className="text-xs text-gray-500">
-            Send queues pending outbox rows via the NoopSender seam — no network delivery until a real provider is connected.
+            {t("email.campaigns.sendHint")}
           </span>
         </div>
         {sendNote && <p className="text-xs text-green-400">{sendNote}</p>}
@@ -1524,19 +1530,19 @@ function CampaignSection({ campaigns, lists, niches, onChanged }: { campaigns: C
 
       <div className="mt-6 glass-card rounded-xl overflow-x-auto">
         {campaigns.length === 0 ? (
-          <EmptyHint text="No campaigns yet — compose your first newsletter above and save a draft." />
+          <EmptyHint text={t("email.campaigns.empty")} />
         ) : (
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-gray-800 text-xs uppercase tracking-wider text-gray-500">
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">List</th>
-                <th className="px-4 py-3">Niche</th>
-                <th className="px-4 py-3">Subject</th>
-                <th className="px-4 py-3">Opens</th>
-                <th className="px-4 py-3">Clicks</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+                <th className="px-4 py-3">{t("common.col.name")}</th>
+                <th className="px-4 py-3">{t("email.subscribers.list")}</th>
+                <th className="px-4 py-3">{t("common.niche")}</th>
+                <th className="px-4 py-3">{t("email.sequences.subject")}</th>
+                <th className="px-4 py-3">{t("email.campaigns.colOpens")}</th>
+                <th className="px-4 py-3">{t("email.campaigns.colClicks")}</th>
+                <th className="px-4 py-3">{t("common.col.status")}</th>
+                <th className="px-4 py-3 text-right">{t("common.col.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -1546,28 +1552,28 @@ function CampaignSection({ campaigns, lists, niches, onChanged }: { campaigns: C
                   <td className="px-4 py-3 text-gray-400">{c.list_name ?? "—"}</td>
                   <td className="px-4 py-3 text-gray-400">{c.niche_name ?? "—"}</td>
                   <td className="px-4 py-3 text-gray-300">{c.subject ?? "—"}</td>
-                  <td className="px-4 py-3 text-gray-400" title="Open counter — a future tracking pixel bumps this">{c.opens}</td>
-                  <td className="px-4 py-3 text-gray-400" title="Click counter — a future tracking pixel bumps this">{c.clicks}</td>
+                  <td className="px-4 py-3 text-gray-400" title={t("email.campaigns.opensTitle")}>{c.opens}</td>
+                  <td className="px-4 py-3 text-gray-400" title={t("email.campaigns.clicksTitle")}>{c.clicks}</td>
                   <td className="px-4 py-3"><StatusPill status={c.status} /></td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap items-center justify-end gap-2">
-                      <button onClick={() => startEdit(c)} className={btnGhost}>Edit</button>
+                      <button onClick={() => startEdit(c)} className={btnGhost}>{t("common.edit")}</button>
                       {c.status === "sent" ? (
-                        <button onClick={() => revertDraft(c)} className={btnGhost} title="Move back to draft (manual placeholder)">
-                          Revert to draft
+                        <button onClick={() => revertDraft(c)} className={btnGhost} title={t("email.campaigns.revertTitle")}>
+                          {t("email.campaigns.revertToDraft")}
                         </button>
                       ) : (
-                        <button onClick={() => markSent(c)} className={btnGhost} title="MANUAL PLACEHOLDER — marks as sent without actually delivering email">
-                          Mark sent (manual)
+                        <button onClick={() => markSent(c)} className={btnGhost} title={t("email.campaigns.markSentTitle")}>
+                          {t("email.campaigns.markSent")}
                         </button>
                       )}
                       <button
                         onClick={() => doSend(c)}
                         disabled={busy || c.status === "sent"}
                         className={btnPrimary}
-                        title={c.status === "sent" ? "Already sent" : SEND_TOOLTIP}
+                        title={c.status === "sent" ? t("email.campaigns.alreadySent") : t("email.campaigns.sendTooltip")}
                       >
-                        Send
+                        {t("email.campaigns.send")}
                       </button>
                     </div>
                   </td>
@@ -1584,6 +1590,7 @@ function CampaignSection({ campaigns, lists, niches, onChanged }: { campaigns: C
 // ── Page ──
 
 function Email() {
+  const { t } = useTranslation();
   const initial = Route.useLoaderData();
   const [data, setData] = useState<EmailData>(initial);
   const [refreshing, setRefreshing] = useState(false);
@@ -1606,32 +1613,32 @@ function Email() {
         <div className="mx-auto max-w-6xl">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">📧 Email Marketing</h1>
+              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{t("email.title")}</h1>
               <p className="mt-2 text-gray-400">
-                Subscribers, lists, and newsletter management. Sending is queued via a pluggable provider seam.
+                {t("email.subtitle")}
               </p>
             </div>
             <button onClick={refresh} disabled={refreshing} className={btnGhost}>
-              {refreshing ? "Refreshing…" : "⟳ Refresh"}
+              {refreshing ? t("analytics.refreshing") : t("analytics.refresh")}
             </button>
           </div>
 
           {/* KPI cards */}
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <KpiCard label="Subscribed Subscribers" value={String(kpis.subscribed)} sub="currently subscribed" />
-            <KpiCard label="Active Lists" value={String(kpis.activeLists)} sub="email lists running" />
-            <KpiCard label="Draft Campaigns" value={String(kpis.draftCampaigns)} sub="not yet sent" />
-            <KpiCard label="Sent Campaigns" value={String(kpis.sentCampaigns)} sub="newsletters delivered" />
+            <KpiCard label={t("email.kpi.subscribed")} value={String(kpis.subscribed)} sub={t("email.kpi.currentlySubscribed")} />
+            <KpiCard label={t("email.kpi.activeLists")} value={String(kpis.activeLists)} sub={t("email.kpi.listsRunning")} />
+            <KpiCard label={t("email.kpi.draftCampaigns")} value={String(kpis.draftCampaigns)} sub={t("email.kpi.notYetSent")} />
+            <KpiCard label={t("email.kpi.sentCampaigns")} value={String(kpis.sentCampaigns)} sub={t("email.kpi.delivered")} />
           </div>
 
           {/* List growth — subscribers by month (last 6 months) */}
           <div className="mt-6 glass-card rounded-xl p-5">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div>
-                <h3 className="text-sm font-semibold text-white">Subscribers by month</h3>
-                <p className="mt-0.5 text-xs text-gray-400">Last 6 months of list growth (by subscribers.created_at)</p>
+                <h3 className="text-sm font-semibold text-white">{t("email.growth.title")}</h3>
+                <p className="mt-0.5 text-xs text-gray-400">{t("email.growth.desc")}</p>
               </div>
-              <span className="text-xs text-gray-500">{growth.reduce((a, g) => a + g.count, 0)} new subscribers in period</span>
+              <span className="text-xs text-gray-500">{t("email.growth.newInPeriod", { n: growth.reduce((a, g) => a + g.count, 0) })}</span>
             </div>
             <div className="mt-4">
               <GrowthBars growth={growth} />

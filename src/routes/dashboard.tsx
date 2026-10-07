@@ -857,7 +857,7 @@ function Dashboard() {
                           onClick={() => handleRunTask(taskId)}
                           disabled={isRunning}
                           className="rounded-lg bg-gradient-to-r from-indigo-500 to-cyan-500 px-3 py-1.5 text-xs font-semibold text-white shadow-md shadow-indigo-500/20 transition-all duration-300 hover:shadow-indigo-500/40 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
-                          title="Run task with AI agent"
+                          title={t("dashboard.runTaskTitle")}
                         >
                           {isRunning ? (
                             <>
