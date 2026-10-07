@@ -374,7 +374,7 @@ function GalleryCard({
         ) : (
           <span className="text-xs text-gray-600">
             {item.type === "image" || item.type === "video" || item.type === "social_post"
-              ? "Coming soon"
+              ? t("gallery.articleCard.comingSoon")
               : ""}
           </span>
         )}

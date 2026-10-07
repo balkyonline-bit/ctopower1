@@ -735,6 +735,17 @@ function Dashboard() {
                   ))}
                 </div>
               )}
+              {pipelineResult.success && pipelineResult.article != null && (
+                <div className="mt-3 rounded-lg bg-gray-900/60 px-3 py-2">
+                  <span className="text-xs text-gray-500">{t("dashboard.articleCreated")}: </span>
+                  <span className="text-xs font-medium text-green-300">
+                    {String((pipelineResult.article as Record<string, unknown>).title)}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {" "}/{(pipelineResult.article as Record<string, unknown>).slug as string}
+                  </span>
+                </div>
+              )}
               <button
                 onClick={() => setPipelineResult(null)}
                 className="mt-3 text-xs text-gray-500 hover:text-gray-300 transition-colors"

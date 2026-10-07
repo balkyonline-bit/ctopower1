@@ -105,6 +105,7 @@
     "pipelineRunningDesc": "Chaining SEO Research → Content Strategy → AI Writer. This may take a minute.",
     "pipelineResult": "Pipeline Result:",
     "complete": "✓ Complete",
+    "articleCreated": "Article created",
     "failed": "✗ Failed",
     "error": "Error:",
     "dismiss": "Dismiss",
@@ -175,7 +176,8 @@
     "articleCard": {
       "byAgent": "by",
       "words": "words",
-      "viewArticle": "View Article →"
+      "viewArticle": "View Article →",
+      "comingSoon": "Coming soon"
     },
     "messageCard": {
       "actionLabel": "Action:"

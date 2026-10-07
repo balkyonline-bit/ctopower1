@@ -94,6 +94,24 @@ export async function callLLM(
 
 function generateMockResponse(prompt: string, systemPrompt?: string): string {
   const promptLower = prompt.toLowerCase();
+  const systemLower = (systemPrompt ?? "").toLowerCase();
+
+  // ── Role-aware dispatch first ──
+  // A task description often embeds the previous step's output (e.g. the
+  // strategist prompt contains the SEO research JSON, and the writer prompt
+  // contains the calendar). Matching on prompt keywords alone therefore
+  // returns the wrong genre — the strategist would get the SEO research back
+  // and the pipeline would keep planning the same first article. The agent's
+  // own role in the system prompt is the reliable signal.
+  if (systemLower.includes("strategist")) {
+    return generateMockContentCalendar(prompt);
+  }
+  if (systemLower.includes("writer")) {
+    return generateMockArticle(prompt);
+  }
+  if (systemLower.includes("role: seo")) {
+    return generateMockKeywordResearch(prompt);
+  }
 
   // SEO / keyword research
   if (
