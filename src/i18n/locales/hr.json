@@ -105,6 +105,7 @@
     "pipelineRunningDesc": "Ulančavanje SEO istraživanje → Strategija sadržaja → AI pisac. Može potrajati minutu.",
     "pipelineResult": "Rezultat cjevovoda:",
     "complete": "✓ Dovršeno",
+    "articleCreated": "Članak je stvoren",
     "failed": "✗ Neuspjelo",
     "error": "Greška:",
     "dismiss": "Odbaci",
@@ -174,7 +175,8 @@
     "articleCard": {
       "byAgent": "od",
       "words": "riječi",
-      "viewArticle": "Pogledaj članak →"
+      "viewArticle": "Pogledaj članak →",
+      "comingSoon": "Uskoro dostupno"
     },
     "messageCard": {
       "actionLabel": "Akcija:"

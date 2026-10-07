@@ -25,6 +25,8 @@ export interface PipelineResult {
     id: string;
     slug: string;
     title: string;
+    wordCount: number;
+    created: boolean;
   };
   error?: string;
 }
@@ -187,21 +189,50 @@ Output as structured JSON.
   }
 
   // ── Step 3: AI Writer ──
-  // Extract the first article title from the strategy results
+  // Pick the next planned article from the strategy calendar that does not
+  // exist in the DB yet, so that every run of the pipeline genuinely produces
+  // a NEW article instead of silently rewriting the same one.
   let firstArticleTitle = `${niche.niche_name}: Complete Guide`;
   let articleBrief = "Write a comprehensive, SEO-optimized guide.";
 
+  const calendarEntries: Array<Record<string, unknown>> = [];
   if (stratResult.success && typeof stratResult.result === "object" && stratResult.result !== null) {
     const stratData = stratResult.result as Record<string, unknown>;
     const calendar = stratData.content_calendar as Array<Record<string, unknown>> | undefined;
-    if (calendar && calendar.length > 0 && calendar[0].title) {
-      firstArticleTitle = String(calendar[0].title);
-      const outline = calendar[0].outline as string[] | undefined;
-      if (outline) {
-        articleBrief = `Write using this outline:\n${outline.map((o) => `- ${o}`).join("\n")}`;
+    if (Array.isArray(calendar)) {
+      for (const entry of calendar) {
+        if (entry && typeof entry === "object" && typeof entry.title === "string" && entry.title.trim()) {
+          calendarEntries.push(entry as Record<string, unknown>);
+        }
       }
     }
   }
+
+  const plannedTitles = calendarEntries.map((e) => String(e.title).trim());
+  if (plannedTitles.length === 0) {
+    plannedTitles.push(`${niche.niche_name}: Complete Guide`);
+  }
+
+  const existingArticleTitles = await sql`
+    SELECT title FROM articles WHERE niche_id = ${niche.id}
+  `;
+  const takenTitles = new Set(
+    existingArticleTitles.map((r) => String((r as { title: string }).title).trim()),
+  );
+
+  const nextPlannedTitle = plannedTitles.find((t) => !takenTitles.has(t));
+  firstArticleTitle = nextPlannedTitle ?? plannedTitles[0];
+
+  const selectedEntry = calendarEntries.find((e) => String(e.title).trim() === firstArticleTitle);
+  const outline = selectedEntry?.outline as string[] | undefined;
+  if (Array.isArray(outline) && outline.length > 0) {
+    articleBrief = `Write using this outline:\n${outline.map((o) => `- ${o}`).join("\n")}`;
+  }
+
+  // The strategy calendar only holds 5 titles; once they are all published,
+  // fall back to an edition of the pillar article so the run still creates a
+  // real, uniquely-slugged article rather than conflicting with an old one.
+  firstArticleTitle = await reserveArticleTitle(niche.id, firstArticleTitle);
 
   const writerTitle = `Write Article: ${firstArticleTitle}`;
   const writerDescription = `
@@ -253,23 +284,50 @@ Output as structured JSON with the full article content and metadata.
     });
 
     // Save article to database if writer succeeded
-    let savedArticle: { id: string; slug: string; title: string } | undefined;
-    if (writerResult.success) {
-      try {
-        savedArticle = await saveArticleFromWriterResult(
-          niche.id,
-          firstArticleTitle,
-          writerResult.result,
-        );
-      } catch (saveErr) {
-        console.error("Failed to save article to DB:", saveErr);
-        // Don't fail the pipeline — the article was still written
-      }
+    let savedArticle: PipelineResult["article"];
+    if (!writerResult.success) {
+      return {
+        success: false,
+        nicheSlug,
+        nicheName: niche.niche_name,
+        steps,
+        error: writerResult.error ?? "Article writing failed",
+      };
     }
 
-    const allSucceeded = steps.every((s) => s.success);
+    try {
+      savedArticle = await saveArticleFromWriterResult(
+        niche.id,
+        firstArticleTitle,
+        writerResult.result,
+      );
+    } catch (saveErr) {
+      const saveMessage = saveErr instanceof Error ? saveErr.message : String(saveErr);
+      steps[steps.length - 1].success = false;
+      steps[steps.length - 1].error = saveMessage;
+      return {
+        success: false,
+        nicheSlug,
+        nicheName: niche.niche_name,
+        steps,
+        error: `The article was written but could not be saved: ${saveMessage}`,
+      };
+    }
+
+    if (!savedArticle || !savedArticle.created) {
+      return {
+        success: false,
+        nicheSlug,
+        nicheName: niche.niche_name,
+        steps,
+        error: "The pipeline finished without creating an article.",
+      };
+    }
+
+    steps[steps.length - 1].summary = `Created the article "${savedArticle.title}" (${savedArticle.wordCount} words)`;
+
     return {
-      success: allSucceeded,
+      success: true,
       nicheSlug,
       nicheName: niche.niche_name,
       steps,
@@ -291,15 +349,42 @@ Output as structured JSON with the full article content and metadata.
 // Internal type for the pipeline
 type ExecuteTaskResultForPipeline = Awaited<ReturnType<typeof executeTask>>;
 
+/** URL-safe slug for an article title. */
+function slugifyTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .substring(0, 120);
+}
+
 /**
- * Parse the writer LLM result and save it as an article in the database.
- * Returns the saved article's id, slug, and title.
+ * Make sure `baseTitle` maps to a slug that no article of this niche uses yet.
+ * Returns the (possibly suffixed) title that is free to publish.
+ */
+async function reserveArticleTitle(nicheId: string, baseTitle: string): Promise<string> {
+  const sql = getSql();
+  for (let edition = 1; edition <= 100; edition++) {
+    const candidate = edition === 1 ? baseTitle : `${baseTitle} — Edition ${edition}`;
+    const slug = slugifyTitle(candidate);
+    const rows = await sql`
+      SELECT id FROM articles WHERE niche_id = ${nicheId} AND slug = ${slug} LIMIT 1
+    `;
+    if (rows.length === 0) return candidate;
+  }
+  throw new Error(`No free article title left for "${baseTitle}" in this niche.`);
+}
+
+/**
+ * Parse the writer LLM result and save it as a NEW article row in the database.
+ * Always inserts — never overwrites an existing article — so a pipeline run
+ * either creates a real article or reports an error.
  */
 async function saveArticleFromWriterResult(
   nicheId: string,
   articleTitle: string,
   writerResult: unknown,
-): Promise<{ id: string; slug: string; title: string }> {
+): Promise<NonNullable<PipelineResult["article"]>> {
   const sql = getSql();
 
   // Extract article content from the writer result
@@ -307,6 +392,7 @@ async function saveArticleFromWriterResult(
   let excerpt = "";
   let seoKeywords: string[] = [];
   let metaDescription = "";
+  let resultTitle = articleTitle;
 
   if (typeof writerResult === "object" && writerResult !== null) {
     const r = writerResult as Record<string, unknown>;
@@ -316,9 +402,10 @@ async function saveArticleFromWriterResult(
       r.content ?? r.article ?? r.body ?? r.text ?? r.output ?? JSON.stringify(writerResult, null, 2),
     );
 
-    // Try to extract title if present
+    // Try to extract title if present — only as metadata, the reserved title
+    // stays authoritative because it is guaranteed to be unused.
     if (r.title && typeof r.title === "string") {
-      articleTitle = r.title;
+      resultTitle = r.title;
     }
 
     // Extract excerpt
@@ -336,11 +423,7 @@ async function saveArticleFromWriterResult(
   }
 
   // Generate a slug from the title
-  const slug = articleTitle
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .substring(0, 120);
+  const slug = slugifyTitle(articleTitle);
 
   // Count words
   const wordCount = content
@@ -348,6 +431,11 @@ async function saveArticleFromWriterResult(
     .split(/\s+/)
     .filter(Boolean).length;
 
+  // Refuse to publish an empty/near-empty article: an honest failure beats a
+  // placeholder row presented as a real output.
+  if (wordCount < 50) {
+    throw new Error(`Writer produced no usable article content (${wordCount} words).`);
+  }
   // Generate excerpt if empty (first 200 chars of content)
   if (!excerpt) {
     excerpt = content
@@ -358,21 +446,17 @@ async function saveArticleFromWriterResult(
     if (content.length > 200) excerpt += "...";
   }
 
-  // Insert into articles table
+  // Insert a NEW article row. ON CONFLICT DO NOTHING means a slug collision is
+  // reported instead of silently overwriting an existing article.
   const result = await sql`
     INSERT INTO articles (niche_id, title, slug, content, excerpt, word_count, status, seo_keywords, meta_description, published_at)
     VALUES (${nicheId}, ${articleTitle}, ${slug}, ${content}, ${excerpt}, ${wordCount}, 'published', ${seoKeywords}, ${metaDescription}, NOW())
-    ON CONFLICT (niche_id, slug)
-    DO UPDATE SET
-      title = EXCLUDED.title,
-      content = EXCLUDED.content,
-      excerpt = EXCLUDED.excerpt,
-      word_count = EXCLUDED.word_count,
-      seo_keywords = EXCLUDED.seo_keywords,
-      meta_description = EXCLUDED.meta_description,
-      published_at = EXCLUDED.published_at
+    ON CONFLICT (niche_id, slug) DO NOTHING
     RETURNING id
   `;
+  if (result.length === 0) {
+    throw new Error(`An article with the slug "${slug}" already exists for this niche.`);
+  }
 
   const articleId = (result[0] as { id: string }).id;
 
@@ -406,5 +490,5 @@ async function saveArticleFromWriterResult(
     console.error("Failed to log article to media_assets:", mediaErr);
   }
 
-  return { id: articleId, slug, title: articleTitle };
+  return { id: articleId, slug, title: articleTitle, wordCount, created: true };
 }
