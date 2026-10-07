@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "~/db";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 // ── Types ──
 
@@ -388,6 +389,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function StatusPill({ status }: { status: string }) {
+  const { t } = useTranslation();
   const active = status === "active";
   return (
     <span
@@ -396,7 +398,7 @@ function StatusPill({ status }: { status: string }) {
       }`}
     >
       <span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-current animate-pulse" : "bg-current"}`} />
-      {active ? "Active" : "Paused"}
+      {active ? t("status.active") : t("status.paused")}
     </span>
   );
 }
@@ -409,10 +411,11 @@ const SOURCE_COLORS: Record<string, string> = {
 };
 
 function SourceBadge({ source }: { source: string }) {
+  const { t } = useTranslation();
   const c = SOURCE_COLORS[source] ?? SOURCE_COLORS.product;
   return (
     <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${c}`}>
-      {source}
+      {t(`source.${source}`, { defaultValue: source })}
     </span>
   );
 }
@@ -455,7 +458,8 @@ function KpiCard({ label, value, sub }: { label: string; value: string; sub?: st
 // ── Monthly totals bar chart (lightweight CSS) ──
 
 function MonthlyBars({ monthly }: { monthly: MonthlyTotal[] }) {
-  if (monthly.length === 0) return <EmptyHint text="No revenue logged yet." />;
+  const { t } = useTranslation();
+  if (monthly.length === 0) return <EmptyHint text={t("monetization.noRevenueLogged")} />;
   const max = Math.max(...monthly.map((m) => m.total), 1);
   return (
     <div className="space-y-2">
@@ -478,6 +482,7 @@ function MonthlyBars({ monthly }: { monthly: MonthlyTotal[] }) {
 // ── Affiliate Programs ──
 
 function ProgramSection({ programs, onChanged }: { programs: Program[]; onChanged: () => void }) {
+  const { t } = useTranslation();
   const [name, setName] = useState("");
   const [network, setNetwork] = useState("");
   const [rate, setRate] = useState("");
@@ -522,7 +527,7 @@ function ProgramSection({ programs, onChanged }: { programs: Program[]; onChange
       reset();
       await onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save program");
+      setError(err instanceof Error ? err.message : t("monetization.programs.errorSave"));
     } finally {
       setBusy(false);
     }
@@ -534,36 +539,36 @@ function ProgramSection({ programs, onChanged }: { programs: Program[]; onChange
   };
 
   const remove = async (p: Program) => {
-    if (!confirm(`Delete program "${p.name}"?`)) return;
+    if (!confirm(t("monetization.programs.confirmDelete", { name: p.name }))) return;
     await deleteProgram({ data: p.id });
     await onChanged();
   };
 
   return (
-    <Section title="Affiliate Programs" description="Programs you're enrolled in — network, commission rate, and notes.">
+    <Section title={t("monetization.programs.title")} description={t("monetization.programs.desc")}>
       <form onSubmit={submit} className="glass-card rounded-xl p-5 space-y-4">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="Name *">
-            <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="Amazon Associates" required />
+          <Field label={t("common.col.name")}>
+            <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder={t("monetization.programs.namePlaceholder")} required />
           </Field>
-          <Field label="Network">
-            <input className={inputCls} value={network} onChange={(e) => setNetwork(e.target.value)} placeholder="Amazon / ShareASale / CJ" />
+          <Field label={t("monetization.programs.network")}>
+            <input className={inputCls} value={network} onChange={(e) => setNetwork(e.target.value)} placeholder={t("monetization.programs.networkPlaceholder")} />
           </Field>
-          <Field label="Commission rate %">
+          <Field label={t("monetization.programs.rate")}>
             <input className={inputCls} value={rate} onChange={(e) => setRate(e.target.value)} placeholder="5.00" type="number" step="0.01" min="0" />
           </Field>
-          <Field label="Notes">
-            <input className={inputCls} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Payout threshold, cookie window…" />
+          <Field label={t("common.notes")}>
+            <input className={inputCls} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("monetization.programs.notesPlaceholder")} />
           </Field>
         </div>
         <ErrorNote error={error} />
         <div className="flex items-center gap-3">
           <button type="submit" disabled={busy || !name.trim()} className={btnPrimary}>
-            {busy ? "Saving…" : editingId ? "Update Program" : "Add Program"}
+            {busy ? t("common.saving") : editingId ? t("monetization.programs.update") : t("monetization.programs.add")}
           </button>
           {editingId && (
             <button type="button" onClick={reset} className={btnGhost}>
-              Cancel edit
+              {t("common.cancelEdit")}
             </button>
           )}
         </div>
@@ -571,17 +576,17 @@ function ProgramSection({ programs, onChanged }: { programs: Program[]; onChange
 
       <div className="mt-4 glass-card rounded-xl overflow-x-auto">
         {programs.length === 0 ? (
-          <EmptyHint text="No programs yet — add your first affiliate program above." />
+          <EmptyHint text={t("monetization.programs.empty")} />
         ) : (
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-gray-800 text-xs uppercase tracking-wider text-gray-500">
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Network</th>
-                <th className="px-4 py-3">Rate</th>
-                <th className="px-4 py-3">Notes</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+                <th className="px-4 py-3">{t("common.col.name")}</th>
+                <th className="px-4 py-3">{t("monetization.programs.network")}</th>
+                <th className="px-4 py-3">{t("monetization.programs.colRate")}</th>
+                <th className="px-4 py-3">{t("common.notes")}</th>
+                <th className="px-4 py-3">{t("common.col.status")}</th>
+                <th className="px-4 py-3 text-right">{t("common.col.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -595,14 +600,14 @@ function ProgramSection({ programs, onChanged }: { programs: Program[]; onChange
                     <div className="flex items-center gap-2">
                       <StatusPill status={p.status} />
                       <button onClick={() => toggle(p)} className="text-xs text-gray-500 hover:text-gray-300">
-                        {p.status === "active" ? "Pause" : "Activate"}
+                        {p.status === "active" ? t("monetization.pause") : t("monetization.activate")}
                       </button>
                     </div>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => startEdit(p)} className={btnGhost}>Edit</button>
-                      <button onClick={() => remove(p)} className={btnDanger}>Delete</button>
+                      <button onClick={() => startEdit(p)} className={btnGhost}>{t("common.edit")}</button>
+                      <button onClick={() => remove(p)} className={btnDanger}>{t("common.delete")}</button>
                     </div>
                   </td>
                 </tr>
@@ -628,6 +633,7 @@ function LinkSection({
   niches: Niche[];
   onChanged: () => void;
 }) {
+  const { t } = useTranslation();
   const [label, setLabel] = useState("");
   const [url, setUrl] = useState("");
   const [programId, setProgramId] = useState("");
@@ -677,7 +683,7 @@ function LinkSection({
       reset();
       await onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save link");
+      setError(err instanceof Error ? err.message : t("monetization.links.errorSave"));
     } finally {
       setBusy(false);
     }
@@ -689,7 +695,7 @@ function LinkSection({
   };
 
   const remove = async (l: Link) => {
-    if (!confirm(`Delete link "${l.label}"?`)) return;
+    if (!confirm(t("monetization.links.confirmDelete", { label: l.label }))) return;
     await deleteLink({ data: l.id });
     await onChanged();
   };
@@ -697,29 +703,29 @@ function LinkSection({
   const visible = filterNiche ? links.filter((l) => l.niche_id === filterNiche) : links;
 
   return (
-    <Section title="Affiliate Links" description="Trackable affiliate URLs — linked to a program, a niche, and an optional tracking code.">
+    <Section title={t("monetization.links.title")} description={t("monetization.links.desc")}>
       <form onSubmit={submit} className="glass-card rounded-xl p-5 space-y-4">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Field label="Label *">
-            <input className={inputCls} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Best coffee maker review" required />
+          <Field label={t("monetization.links.label")}>
+            <input className={inputCls} value={label} onChange={(e) => setLabel(e.target.value)} placeholder={t("monetization.links.labelPlaceholder")} required />
           </Field>
-          <Field label="URL *">
-            <input className={inputCls} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://amzn.to/…" required />
+          <Field label={t("monetization.links.url")}>
+            <input className={inputCls} value={url} onChange={(e) => setUrl(e.target.value)} placeholder={t("monetization.links.urlPlaceholder")} required />
           </Field>
-          <Field label="Tracking code">
-            <input className={inputCls} value={trackingCode} onChange={(e) => setTrackingCode(e.target.value)} placeholder="tag=empireai-20" />
+          <Field label={t("monetization.links.trackingCode")}>
+            <input className={inputCls} value={trackingCode} onChange={(e) => setTrackingCode(e.target.value)} placeholder={t("monetization.links.trackingPlaceholder")} />
           </Field>
-          <Field label="Program">
+          <Field label={t("monetization.links.program")}>
             <select className={inputCls} value={programId} onChange={(e) => setProgramId(e.target.value)}>
-              <option value="">— none —</option>
+              <option value="">{t("common.none")}</option>
               {programs.map((p) => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </select>
           </Field>
-          <Field label="Niche">
+          <Field label={t("common.niche")}>
             <select className={inputCls} value={nicheId} onChange={(e) => setNicheId(e.target.value)}>
-              <option value="">— none —</option>
+              <option value="">{t("common.none")}</option>
               {niches.map((n) => (
                 <option key={n.id} value={n.id}>{n.niche_name}</option>
               ))}
@@ -729,43 +735,43 @@ function LinkSection({
         <ErrorNote error={error} />
         <div className="flex items-center gap-3">
           <button type="submit" disabled={busy || !label.trim() || !url.trim()} className={btnPrimary}>
-            {busy ? "Saving…" : editingId ? "Update Link" : "Add Link"}
+            {busy ? t("common.saving") : editingId ? t("monetization.links.update") : t("monetization.links.add")}
           </button>
           {editingId && (
-            <button type="button" onClick={reset} className={btnGhost}>Cancel edit</button>
+            <button type="button" onClick={reset} className={btnGhost}>{t("common.cancelEdit")}</button>
           )}
         </div>
       </form>
 
       <div className="mt-4 flex items-center gap-2">
-        <label className="text-xs font-medium uppercase tracking-wider text-gray-500">Filter by niche</label>
+        <label className="text-xs font-medium uppercase tracking-wider text-gray-500">{t("monetization.links.filterByNiche")}</label>
         <select
           className="rounded-lg border border-gray-700 bg-gray-900/60 px-3 py-1.5 text-xs text-gray-100 focus:border-indigo-500/50 focus:outline-none"
           value={filterNiche}
           onChange={(e) => setFilterNiche(e.target.value)}
         >
-          <option value="">All niches</option>
+          <option value="">{t("common.allNiches")}</option>
           {niches.map((n) => (
             <option key={n.id} value={n.id}>{n.niche_name}</option>
           ))}
         </select>
-        <span className="text-xs text-gray-500">{visible.length} link{visible.length === 1 ? "" : "s"}</span>
+        <span className="text-xs text-gray-500">{visible.length === 1 ? t("monetization.links.countOne", { n: visible.length }) : t("monetization.links.countMany", { n: visible.length })}</span>
       </div>
 
       <div className="mt-4 glass-card rounded-xl overflow-x-auto">
         {visible.length === 0 ? (
-          <EmptyHint text="No links match — add one above or change the filter." />
+          <EmptyHint text={t("monetization.links.empty")} />
         ) : (
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-gray-800 text-xs uppercase tracking-wider text-gray-500">
-                <th className="px-4 py-3">Label</th>
-                <th className="px-4 py-3">URL</th>
-                <th className="px-4 py-3">Program</th>
-                <th className="px-4 py-3">Niche</th>
-                <th className="px-4 py-3">Tracking</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+                <th className="px-4 py-3">{t("monetization.links.label")}</th>
+                <th className="px-4 py-3">{t("monetization.links.url")}</th>
+                <th className="px-4 py-3">{t("monetization.links.program")}</th>
+                <th className="px-4 py-3">{t("common.niche")}</th>
+                <th className="px-4 py-3">{t("monetization.links.colTracking")}</th>
+                <th className="px-4 py-3">{t("common.col.status")}</th>
+                <th className="px-4 py-3 text-right">{t("common.col.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -784,14 +790,14 @@ function LinkSection({
                     <div className="flex items-center gap-2">
                       <StatusPill status={l.status} />
                       <button onClick={() => toggle(l)} className="text-xs text-gray-500 hover:text-gray-300">
-                        {l.status === "active" ? "Pause" : "Activate"}
+                        {l.status === "active" ? t("monetization.pause") : t("monetization.activate")}
                       </button>
                     </div>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => startEdit(l)} className={btnGhost}>Edit</button>
-                      <button onClick={() => remove(l)} className={btnDanger}>Delete</button>
+                      <button onClick={() => startEdit(l)} className={btnGhost}>{t("common.edit")}</button>
+                      <button onClick={() => remove(l)} className={btnDanger}>{t("common.delete")}</button>
                     </div>
                   </td>
                 </tr>
@@ -807,6 +813,7 @@ function LinkSection({
 // ── Ad Slots ──
 
 function AdSlotSection({ adSlots, onChanged }: { adSlots: AdSlot[]; onChanged: () => void }) {
+  const { t } = useTranslation();
   const [name, setName] = useState("");
   const [pageLocation, setPageLocation] = useState("");
   const [format, setFormat] = useState("");
@@ -847,7 +854,7 @@ function AdSlotSection({ adSlots, onChanged }: { adSlots: AdSlot[]; onChanged: (
       reset();
       await onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save ad slot");
+      setError(err instanceof Error ? err.message : t("monetization.ads.errorSave"));
     } finally {
       setBusy(false);
     }
@@ -859,48 +866,48 @@ function AdSlotSection({ adSlots, onChanged }: { adSlots: AdSlot[]; onChanged: (
   };
 
   const remove = async (s: AdSlot) => {
-    if (!confirm(`Delete ad slot "${s.name}"?`)) return;
+    if (!confirm(t("monetization.ads.confirmDelete", { name: s.name }))) return;
     await deleteAdSlot({ data: s.id });
     await onChanged();
   };
 
   return (
-    <Section title="Ad Placement Slots" description="AdSense / direct-ad placements — name, page location, and format.">
+    <Section title={t("monetization.ads.title")} description={t("monetization.ads.desc")}>
       <form onSubmit={submit} className="glass-card rounded-xl p-5 space-y-4">
         <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="Slot name *">
-            <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="In-article banner" required />
+          <Field label={t("monetization.ads.slotName")}>
+            <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder={t("monetization.ads.slotNamePlaceholder")} required />
           </Field>
-          <Field label="Page location">
-            <input className={inputCls} value={pageLocation} onChange={(e) => setPageLocation(e.target.value)} placeholder="Article body, after paragraph 3" />
+          <Field label={t("monetization.ads.pageLocation")}>
+            <input className={inputCls} value={pageLocation} onChange={(e) => setPageLocation(e.target.value)} placeholder={t("monetization.ads.pageLocationPlaceholder")} />
           </Field>
-          <Field label="Format">
-            <input className={inputCls} value={format} onChange={(e) => setFormat(e.target.value)} placeholder="300x250 / responsive / anchor" />
+          <Field label={t("monetization.ads.format")}>
+            <input className={inputCls} value={format} onChange={(e) => setFormat(e.target.value)} placeholder={t("monetization.ads.formatPlaceholder")} />
           </Field>
         </div>
         <ErrorNote error={error} />
         <div className="flex items-center gap-3">
           <button type="submit" disabled={busy || !name.trim()} className={btnPrimary}>
-            {busy ? "Saving…" : editingId ? "Update Slot" : "Add Slot"}
+            {busy ? t("common.saving") : editingId ? t("monetization.ads.update") : t("monetization.ads.add")}
           </button>
           {editingId && (
-            <button type="button" onClick={reset} className={btnGhost}>Cancel edit</button>
+            <button type="button" onClick={reset} className={btnGhost}>{t("common.cancelEdit")}</button>
           )}
         </div>
       </form>
 
       <div className="mt-4 glass-card rounded-xl overflow-x-auto">
         {adSlots.length === 0 ? (
-          <EmptyHint text="No ad slots yet — configure your first placement above." />
+          <EmptyHint text={t("monetization.ads.empty")} />
         ) : (
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-gray-800 text-xs uppercase tracking-wider text-gray-500">
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Page location</th>
-                <th className="px-4 py-3">Format</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+                <th className="px-4 py-3">{t("common.col.name")}</th>
+                <th className="px-4 py-3">{t("monetization.ads.pageLocation")}</th>
+                <th className="px-4 py-3">{t("monetization.ads.format")}</th>
+                <th className="px-4 py-3">{t("common.col.status")}</th>
+                <th className="px-4 py-3 text-right">{t("common.col.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -913,14 +920,14 @@ function AdSlotSection({ adSlots, onChanged }: { adSlots: AdSlot[]; onChanged: (
                     <div className="flex items-center gap-2">
                       <StatusPill status={s.status} />
                       <button onClick={() => toggle(s)} className="text-xs text-gray-500 hover:text-gray-300">
-                        {s.status === "active" ? "Pause" : "Activate"}
+                        {s.status === "active" ? t("monetization.pause") : t("monetization.activate")}
                       </button>
                     </div>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => startEdit(s)} className={btnGhost}>Edit</button>
-                      <button onClick={() => remove(s)} className={btnDanger}>Delete</button>
+                      <button onClick={() => startEdit(s)} className={btnGhost}>{t("common.edit")}</button>
+                      <button onClick={() => remove(s)} className={btnDanger}>{t("common.delete")}</button>
                     </div>
                   </td>
                 </tr>
@@ -946,6 +953,7 @@ function RevenueSection({
   links: Link[];
   onChanged: () => void;
 }) {
+  const { t } = useTranslation();
   const [source, setSource] = useState("affiliate");
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("USD");
@@ -979,53 +987,53 @@ function RevenueSection({
       setLinkId("");
       await onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to log revenue");
+      setError(err instanceof Error ? err.message : t("monetization.revenue.errorSave"));
     } finally {
       setBusy(false);
     }
   };
 
   const remove = async (r: RevenueEntry) => {
-    if (!confirm(`Delete revenue entry of ${fmtMoney(r.amount)}?`)) return;
+    if (!confirm(t("monetization.revenue.confirmDelete", { amount: fmtMoney(r.amount) }))) return;
     await deleteRevenueEntry({ data: r.id });
     await onChanged();
   };
 
   return (
-    <Section title="Revenue Log" description="Log income per source (affiliate, ads, product, leadgen) and track totals.">
+    <Section title={t("monetization.revenue.title")} description={t("monetization.revenue.desc")}>
       <form onSubmit={submit} className="glass-card rounded-xl p-5 space-y-4">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="Source *">
+          <Field label={t("monetization.revenue.source")}>
             <select className={inputCls} value={source} onChange={(e) => setSource(e.target.value)}>
-              <option value="affiliate">Affiliate</option>
-              <option value="ads">Ads</option>
-              <option value="product">Product</option>
-              <option value="leadgen">Lead gen</option>
+              <option value="affiliate">{t("source.affiliate")}</option>
+              <option value="ads">{t("source.ads")}</option>
+              <option value="product">{t("source.product")}</option>
+              <option value="leadgen">{t("source.leadgen")}</option>
             </select>
           </Field>
-          <Field label="Amount *">
+          <Field label={t("monetization.revenue.amount")}>
             <input className={inputCls} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="12.50" type="number" step="0.01" min="0" required />
           </Field>
-          <Field label="Currency">
+          <Field label={t("monetization.revenue.currency")}>
             <input className={inputCls} value={currency} onChange={(e) => setCurrency(e.target.value)} placeholder="USD" />
           </Field>
-          <Field label="Date">
+          <Field label={t("monetization.revenue.date")}>
             <input className={inputCls} value={entryDate} onChange={(e) => setEntryDate(e.target.value)} type="date" />
           </Field>
-          <Field label="Description">
-            <input className={inputCls} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Amazon Q3 payout, guide page…" />
+          <Field label={t("monetization.revenue.description")}>
+            <input className={inputCls} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("monetization.revenue.descriptionPlaceholder")} />
           </Field>
-          <Field label="Niche">
+          <Field label={t("common.niche")}>
             <select className={inputCls} value={nicheId} onChange={(e) => setNicheId(e.target.value)}>
-              <option value="">— none —</option>
+              <option value="">{t("common.none")}</option>
               {niches.map((n) => (
                 <option key={n.id} value={n.id}>{n.niche_name}</option>
               ))}
             </select>
           </Field>
-          <Field label="Link">
+          <Field label={t("monetization.revenue.link")}>
             <select className={inputCls} value={linkId} onChange={(e) => setLinkId(e.target.value)}>
-              <option value="">— none —</option>
+              <option value="">{t("common.none")}</option>
               {links.map((l) => (
                 <option key={l.id} value={l.id}>{l.label}</option>
               ))}
@@ -1034,24 +1042,24 @@ function RevenueSection({
         </div>
         <ErrorNote error={error} />
         <button type="submit" disabled={busy || !amount || Number(amount) <= 0} className={btnPrimary}>
-          {busy ? "Saving…" : "Log Revenue"}
+          {busy ? t("common.saving") : t("monetization.revenue.logRevenue")}
         </button>
       </form>
 
       <div className="mt-4 glass-card rounded-xl overflow-x-auto">
         {revenue.length === 0 ? (
-          <EmptyHint text="No revenue logged yet — add your first entry above." />
+          <EmptyHint text={t("monetization.revenue.empty")} />
         ) : (
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-gray-800 text-xs uppercase tracking-wider text-gray-500">
-                <th className="px-4 py-3">Date</th>
-                <th className="px-4 py-3">Source</th>
-                <th className="px-4 py-3">Amount</th>
-                <th className="px-4 py-3">Description</th>
-                <th className="px-4 py-3">Niche</th>
-                <th className="px-4 py-3">Link</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+                <th className="px-4 py-3">{t("monetization.revenue.date")}</th>
+                <th className="px-4 py-3">{t("monetization.revenue.source")}</th>
+                <th className="px-4 py-3">{t("monetization.revenue.amount")}</th>
+                <th className="px-4 py-3">{t("monetization.revenue.description")}</th>
+                <th className="px-4 py-3">{t("common.niche")}</th>
+                <th className="px-4 py-3">{t("monetization.revenue.link")}</th>
+                <th className="px-4 py-3 text-right">{t("common.col.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -1065,7 +1073,7 @@ function RevenueSection({
                   <td className="px-4 py-3 text-gray-400 max-w-[160px] truncate">{r.link_label ?? "—"}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end">
-                      <button onClick={() => remove(r)} className={btnDanger}>Delete</button>
+                      <button onClick={() => remove(r)} className={btnDanger}>{t("common.delete")}</button>
                     </div>
                   </td>
                 </tr>
@@ -1081,6 +1089,7 @@ function RevenueSection({
 // ── Page ──
 
 function Monetization() {
+  const { t } = useTranslation();
   const initial = Route.useLoaderData();
   const [data, setData] = useState<MonetizationData>(initial);
   const [refreshing, setRefreshing] = useState(false);
@@ -1103,36 +1112,36 @@ function Monetization() {
         <div className="mx-auto max-w-6xl">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">💰 Monetization Engine</h1>
+              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{t("monetization.title")}</h1>
               <p className="mt-2 text-gray-400">
-                Affiliate programs, links, ad placements, and revenue tracking — all in one place.
+                {t("monetization.subtitle")}
               </p>
             </div>
             <button onClick={refresh} disabled={refreshing} className={btnGhost}>
-              {refreshing ? "Refreshing…" : "⟳ Refresh"}
+              {refreshing ? t("analytics.refreshing") : t("analytics.refresh")}
             </button>
           </div>
 
           {/* KPI cards */}
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <KpiCard label="Total Revenue" value={`$${fmtMoney(kpis.total)}`} sub="all-time" />
-            <KpiCard label="This Month" value={`$${fmtMoney(kpis.month)}`} sub="current calendar month" />
+            <KpiCard label={t("monetization.kpi.totalRevenue")} value={`$${fmtMoney(kpis.total)}`} sub={t("monetization.kpi.allTime")} />
+            <KpiCard label={t("monetization.kpi.thisMonth")} value={`$${fmtMoney(kpis.month)}`} sub={t("monetization.kpi.currentMonth")} />
             <KpiCard
-              label="Top Source"
+              label={t("monetization.kpi.topSource")}
               value={kpis.top_source ? kpis.top_source : "—"}
-              sub={kpis.top_source ? `$${fmtMoney(kpis.top_source_total)}` : "log revenue to see top source"}
+              sub={kpis.top_source ? `$${fmtMoney(kpis.top_source_total)}` : t("monetization.kpi.logTopSource")}
             />
             <KpiCard
-              label="Top Niche"
+              label={t("monetization.kpi.topNiche")}
               value={kpis.top_niche ? kpis.top_niche : "—"}
-              sub={kpis.top_niche ? `$${fmtMoney(kpis.top_niche_total)}` : "log revenue to see top niche"}
+              sub={kpis.top_niche ? `$${fmtMoney(kpis.top_niche_total)}` : t("monetization.kpi.logTopNiche")}
             />
           </div>
 
           {/* Monthly chart */}
           <div className="mt-4 glass-card rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-white">Monthly Totals</h3>
-            <p className="mt-0.5 text-xs text-gray-400">Last {monthly.length || 0} months with revenue</p>
+            <h3 className="text-sm font-semibold text-white">{t("monetization.monthlyTotals")}</h3>
+            <p className="mt-0.5 text-xs text-gray-400">{t("monetization.monthlyDesc", { n: monthly.length || 0 })}</p>
             <div className="mt-4">
               <MonthlyBars monthly={monthly} />
             </div>

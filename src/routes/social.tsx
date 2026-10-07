@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "~/db";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 // ── Types ──
 
@@ -288,10 +289,11 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 function StatusPill({ status }: { status: string }) {
+  const { t } = useTranslation();
   const c = STATUS_COLORS[status] ?? STATUS_COLORS.draft;
   return (
     <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${c}`}>
-      {status}
+      {t(`status.${status}`, { defaultValue: status })}
     </span>
   );
 }
@@ -351,6 +353,7 @@ function PostSection({
   accounts: SocialAccount[];
   onChanged: () => void;
 }) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [platforms, setPlatforms] = useState<string[]>(["twitter"]);
@@ -415,7 +418,7 @@ function PostSection({
       reset();
       await onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save post");
+      setError(err instanceof Error ? err.message : t("social.errorSavePost"));
     } finally {
       setBusy(false);
     }
@@ -427,7 +430,7 @@ function PostSection({
   };
 
   const cancel = async (p: SocialPost) => {
-    if (!confirm(`Cancel scheduled post "${p.title}"?`)) return;
+    if (!confirm(t("social.confirmCancelPost", { title: p.title }))) return;
     await setPostStatus({ data: { id: p.id, status: "cancelled" } });
     await onChanged();
   };
@@ -438,7 +441,7 @@ function PostSection({
   };
 
   const remove = async (p: SocialPost) => {
-    if (!confirm(`Delete post "${p.title}"?`)) return;
+    if (!confirm(t("social.confirmDeletePost", { title: p.title }))) return;
     await deletePost({ data: p.id });
     await onChanged();
   };
@@ -446,13 +449,13 @@ function PostSection({
   const mediaUrls = media.map((m) => m.url).filter((u): u is string => !!u);
 
   return (
-    <Section title="📝 Compose Post" description="Create a post, pick target platform(s), and schedule it for later publishing.">
+    <Section title={t("social.compose.title")} description={t("social.compose.desc")}>
       <form onSubmit={submit} className="glass-card rounded-xl p-5 space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Title *">
-            <input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="10 habits of productive founders" required />
+          <Field label={t("social.compose.fieldTitle")}>
+            <input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("social.compose.fieldTitlePlaceholder")} required />
           </Field>
-          <Field label="Target platforms *">
+          <Field label={t("social.compose.targetPlatforms")}>
             <div className="flex flex-wrap gap-2">
               {PLATFORMS.map((p) => {
                 const on = platforms.includes(p.id);
@@ -473,23 +476,23 @@ function PostSection({
               })}
             </div>
             {platforms.length > 0 && (
-              <p className="mt-1 text-xs text-gray-500">Will publish to: {platforms.map(platformLabel).join(", ")}</p>
+              <p className="mt-1 text-xs text-gray-500">{t("social.compose.willPublishTo")} {platforms.map(platformLabel).join(", ")}</p>
             )}
           </Field>
         </div>
 
-        <Field label="Content">
+        <Field label={t("social.compose.content")}>
           <textarea
             className={`${inputCls} resize-y`}
             rows={4}
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="Write the post body…"
+            placeholder={t("social.compose.contentPlaceholder")}
           />
         </Field>
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="Schedule date & time" hint="Leave empty to save as draft.">
+          <Field label={t("social.compose.scheduleDate")} hint={t("social.compose.scheduleHint")}>
             <input
               className={inputCls}
               type="datetime-local"
@@ -497,12 +500,12 @@ function PostSection({
               onChange={(e) => setScheduledAt(e.target.value)}
             />
           </Field>
-          <Field label="Image URL" hint="Optional — pick from generated media assets.">
+          <Field label={t("social.compose.imageUrl")} hint={t("social.compose.imageUrlHint")}>
             <input
               className={inputCls}
               value={imageUrl}
               onChange={(e) => setImageUrl(e.target.value)}
-              placeholder="https://…/image.png"
+              placeholder={t("social.compose.imageUrlPlaceholder")}
               list="social-media-options"
             />
             <datalist id="social-media-options">
@@ -511,20 +514,20 @@ function PostSection({
               ))}
             </datalist>
           </Field>
-          <Field label="Link">
+          <Field label={t("social.compose.link")}>
             <input
               className={inputCls}
               value={link}
               onChange={(e) => setLink(e.target.value)}
-              placeholder="https://…"
+              placeholder={t("social.compose.linkPlaceholder")}
             />
           </Field>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Niche">
+          <Field label={t("common.niche")}>
             <select className={inputCls} value={nicheId} onChange={(e) => setNicheId(e.target.value)}>
-              <option value="">— None —</option>
+              <option value="">{t("common.none")}</option>
               {niches.map((n) => (
                 <option key={n.id} value={n.id}>
                   {n.niche_name}
@@ -534,7 +537,7 @@ function PostSection({
           </Field>
           <Field label="Account">
             <select className={inputCls} value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-              <option value="">— None —</option>
+              <option value="">{t("common.none")}</option>
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
                   {platformLabel(a.platform)} · {a.handle}
@@ -547,30 +550,30 @@ function PostSection({
         <ErrorNote error={error} />
         <div className="flex items-center gap-3">
           <button type="submit" disabled={busy || !title.trim() || platforms.length === 0} className={btnPrimary}>
-            {busy ? "Saving…" : editingId ? "Update Post" : scheduledAt ? "Schedule Post" : "Save Draft"}
+            {busy ? t("common.saving") : editingId ? t("social.compose.updatePost") : scheduledAt ? t("social.compose.schedulePost") : t("social.compose.saveDraft")}
           </button>
           {editingId && (
             <button type="button" onClick={reset} className={btnGhost}>
-              Cancel edit
+              {t("common.cancelEdit")}
             </button>
           )}
         </div>
       </form>
 
       <div className="mt-8">
-        <h3 className="text-sm font-semibold text-white">All Posts</h3>
+        <h3 className="text-sm font-semibold text-white">{t("social.allPosts")}</h3>
         <div className="mt-3 glass-card rounded-xl overflow-x-auto">
           {posts.length === 0 ? (
-            <EmptyHint text="No posts yet — compose your first one above." />
+            <EmptyHint text={t("social.noPosts")} />
           ) : (
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-gray-800 text-xs uppercase tracking-wider text-gray-500">
-                  <th className="px-4 py-3">Title</th>
-                  <th className="px-4 py-3">Platforms</th>
-                  <th className="px-4 py-3">Scheduled</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
+                  <th className="px-4 py-3">{t("common.col.title")}</th>
+                  <th className="px-4 py-3">{t("common.col.platforms")}</th>
+                  <th className="px-4 py-3">{t("common.col.scheduled")}</th>
+                  <th className="px-4 py-3">{t("common.col.status")}</th>
+                  <th className="px-4 py-3 text-right">{t("common.col.actions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -593,18 +596,18 @@ function PostSection({
                       <div className="flex items-center justify-end gap-2 flex-wrap">
                         {p.status === "scheduled" && (
                           <>
-                            <button onClick={() => publishNow(p)} className={btnGhost}>Publish now</button>
-                            <button onClick={() => cancel(p)} className={btnGhost}>Cancel</button>
+                            <button onClick={() => publishNow(p)} className={btnGhost}>{t("social.publishNow")}</button>
+                            <button onClick={() => cancel(p)} className={btnGhost}>{t("common.cancel")}</button>
                           </>
                         )}
                         {p.status === "cancelled" && (
-                          <button onClick={() => restoreDraft(p)} className={btnGhost}>Reopen</button>
+                          <button onClick={() => restoreDraft(p)} className={btnGhost}>{t("social.reopen")}</button>
                         )}
                         {p.status === "draft" && (
-                          <button onClick={() => publishNow(p)} className={btnGhost}>Publish now</button>
+                          <button onClick={() => publishNow(p)} className={btnGhost}>{t("social.publishNow")}</button>
                         )}
-                        <button onClick={() => startEdit(p)} className={btnGhost}>Edit</button>
-                        <button onClick={() => remove(p)} className={btnDanger}>Delete</button>
+                        <button onClick={() => startEdit(p)} className={btnGhost}>{t("common.edit")}</button>
+                        <button onClick={() => remove(p)} className={btnDanger}>{t("common.delete")}</button>
                       </div>
                     </td>
                   </tr>
@@ -621,6 +624,7 @@ function PostSection({
 // ── Accounts ──
 
 function AccountSection({ accounts, niches, onChanged }: { accounts: SocialAccount[]; niches: Niche[]; onChanged: () => void }) {
+  const { t } = useTranslation();
   const [platform, setPlatform] = useState("twitter");
   const [handle, setHandle] = useState("");
   const [nicheId, setNicheId] = useState("");
@@ -638,23 +642,23 @@ function AccountSection({ accounts, niches, onChanged }: { accounts: SocialAccou
       setNicheId("");
       await onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add account");
+      setError(err instanceof Error ? err.message : t("social.errorAddAccount"));
     } finally {
       setBusy(false);
     }
   };
 
   const remove = async (a: SocialAccount) => {
-    if (!confirm(`Remove account @${a.handle}? Posts will be unlinked.`)) return;
+    if (!confirm(t("social.confirmRemoveAccount", { handle: a.handle }))) return;
     await deleteAccount({ data: a.id });
     await onChanged();
   };
 
   return (
-    <Section title="🔗 Connected Accounts" description="The handles your posts are scheduled to. Optional — posts can be created without an account.">
+    <Section title={t("social.accounts.title")} description={t("social.accounts.desc")}>
       <form onSubmit={submit} className="glass-card rounded-xl p-5 space-y-4">
         <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="Platform">
+          <Field label={t("common.platform")}>
             <select className={inputCls} value={platform} onChange={(e) => setPlatform(e.target.value)}>
               {PLATFORMS.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -663,18 +667,18 @@ function AccountSection({ accounts, niches, onChanged }: { accounts: SocialAccou
               ))}
             </select>
           </Field>
-          <Field label="Handle *">
+          <Field label={t("social.accounts.handle")}>
             <input
               className={inputCls}
               value={handle}
               onChange={(e) => setHandle(e.target.value)}
-              placeholder="@brandhandle"
+              placeholder={t("social.accounts.handlePlaceholder")}
               required
             />
           </Field>
-          <Field label="Niche">
+          <Field label={t("common.niche")}>
             <select className={inputCls} value={nicheId} onChange={(e) => setNicheId(e.target.value)}>
-              <option value="">— None —</option>
+              <option value="">{t("common.none")}</option>
               {niches.map((n) => (
                 <option key={n.id} value={n.id}>
                   {n.niche_name}
@@ -685,21 +689,21 @@ function AccountSection({ accounts, niches, onChanged }: { accounts: SocialAccou
         </div>
         <ErrorNote error={error} />
         <button type="submit" disabled={busy || !handle.trim()} className={btnPrimary}>
-          {busy ? "Adding…" : "Add Account"}
+          {busy ? t("common.adding") : t("social.accounts.addAccount")}
         </button>
       </form>
 
       <div className="mt-6 glass-card rounded-xl overflow-x-auto">
         {accounts.length === 0 ? (
-          <EmptyHint text="No connected accounts yet." />
+          <EmptyHint text={t("social.accounts.empty")} />
         ) : (
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-gray-800 text-xs uppercase tracking-wider text-gray-500">
-                <th className="px-4 py-3">Platform</th>
-                <th className="px-4 py-3">Handle</th>
-                <th className="px-4 py-3">Niche</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+                <th className="px-4 py-3">{t("common.platform")}</th>
+                <th className="px-4 py-3">{t("social.accounts.colHandle")}</th>
+                <th className="px-4 py-3">{t("common.niche")}</th>
+                <th className="px-4 py-3 text-right">{t("common.col.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -710,7 +714,7 @@ function AccountSection({ accounts, niches, onChanged }: { accounts: SocialAccou
                   <td className="px-4 py-3 text-gray-400">{a.niche_name ?? "—"}</td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end">
-                      <button onClick={() => remove(a)} className={btnDanger}>Remove</button>
+                      <button onClick={() => remove(a)} className={btnDanger}>{t("social.accounts.remove")}</button>
                     </div>
                   </td>
                 </tr>
@@ -726,6 +730,7 @@ function AccountSection({ accounts, niches, onChanged }: { accounts: SocialAccou
 // ── Page ──
 
 function Social() {
+  const { t } = useTranslation();
   const initial = Route.useLoaderData();
   const [data, setData] = useState<SocialData>(initial);
   const [refreshing, setRefreshing] = useState(false);
@@ -750,31 +755,31 @@ function Social() {
         <div className="mx-auto max-w-6xl">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">📣 Social Media Automation</h1>
+              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{t("social.title")}</h1>
               <p className="mt-2 text-gray-400">
-                Compose posts, schedule them across platforms, and track your publishing queue.
+                {t("social.subtitle")}
               </p>
             </div>
             <button onClick={refresh} disabled={refreshing} className={btnGhost}>
-              {refreshing ? "Refreshing…" : "⟳ Refresh"}
+              {refreshing ? t("analytics.refreshing") : t("analytics.refresh")}
             </button>
           </div>
 
           {/* KPI cards */}
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <KpiCard label="Upcoming" value={String(upcoming.length)} sub="scheduled posts" />
-            <KpiCard label="Published" value={String(published.length)} sub="posts live" />
-            <KpiCard label="Drafts" value={String(data.posts.filter((p) => p.status === "draft").length)} sub="not yet scheduled" />
-            <KpiCard label="Accounts" value={String(data.accounts.length)} sub="connected platforms" />
+            <KpiCard label={t("social.kpi.upcoming")} value={String(upcoming.length)} sub={t("social.kpi.scheduledPosts")} />
+            <KpiCard label={t("social.kpi.published")} value={String(published.length)} sub={t("social.kpi.postsLive")} />
+            <KpiCard label={t("social.kpi.drafts")} value={String(data.posts.filter((p) => p.status === "draft").length)} sub={t("social.kpi.notYetScheduled")} />
+            <KpiCard label={t("social.kpi.accounts")} value={String(data.accounts.length)} sub={t("social.kpi.connectedPlatforms")} />
           </div>
 
           {/* Upcoming schedule list */}
           <div className="mt-4 glass-card rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-white">Upcoming Schedule</h3>
-            <p className="mt-0.5 text-xs text-gray-400">Posts scheduled to go out</p>
+            <h3 className="text-sm font-semibold text-white">{t("social.upcomingSchedule")}</h3>
+            <p className="mt-0.5 text-xs text-gray-400">{t("social.upcomingScheduleDesc")}</p>
             <div className="mt-4 space-y-2">
               {upcoming.length === 0 ? (
-                <p className="py-2 text-sm text-gray-500">Nothing scheduled yet — compose and schedule a post above.</p>
+                <p className="py-2 text-sm text-gray-500">{t("social.nothingScheduled")}</p>
               ) : (
                 upcoming.map((p) => (
                   <div key={p.id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-800 bg-gray-900/40 px-3 py-2">

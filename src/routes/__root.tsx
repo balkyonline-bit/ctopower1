@@ -20,10 +20,15 @@ export const Route = createRootRoute({
     ],
     links: [{ rel: "stylesheet", href: appCss }],
   }),
-  notFoundComponent: () => <div>Page not found</div>,
+  notFoundComponent: NotFound,
+
   component: RootComponent,
 });
 
+function NotFound() {
+  const { t } = useTranslation();
+  return <div>{t("common.notFound")}</div>;
+}
 function RootComponent() {
   const { i18n } = useTranslation();
 
@@ -59,7 +64,7 @@ function NavBar() {
     { name: t("nav.automation"), href: "/automation" },
     { name: t("nav.gallery"), href: "/gallery" },
     { name: t("nav.social"), href: "/social" },
-    { name: "📧 Email", href: "/email" },
+    { name: t("nav.email"), href: "/email" },
     { name: t("nav.monetization"), href: "/monetization" },
     { name: t("nav.demo"), href: "/tech" },
   ] as const;

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "~/db";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 // ── Types ──
 interface NicheStats {
@@ -250,9 +251,10 @@ function KpiCard({ label, value, sub }: { label: string; value: string; sub?: st
 }
 // ── Trend bars (lightweight CSS, mirrors monetization/email growth bars) ──
 function TrendBars({ data, formatRight }: { data: { month: string; value: number; label: string }[]; formatRight: (v: number) => string }) {
+  const { t } = useTranslation();
   const max = Math.max(...data.map((d) => Math.max(data.some((d) => d.value > 0) ? d.value : 0, 0), 1), 1);
   if (data.every((d) => d.value === 0)) {
-    return <EmptyHint text="No data in the last 6 months yet." />;
+    return <EmptyHint text={t("analytics.noData6m")} />;
   }
   return (
     <div className="space-y-2">
@@ -272,10 +274,11 @@ function TrendBars({ data, formatRight }: { data: { month: string; value: number
   );
 }
 function StatusRow({ status, count, max, color }: { status: string; count: number; max: number; color: string }) {
+  const { t } = useTranslation();
   return (
     <div className="flex items-center gap-3">
       <span className={`inline-flex w-24 items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${color}`}>
-        {status}
+        {t(`status.${status}`, { defaultValue: status })}
       </span>
       <div className="h-3 flex-1 overflow-hidden rounded-md bg-gray-800/60">
         <div
@@ -307,6 +310,7 @@ const LIST_STATUS_COLORS: Record<string, string> = {
 
 // ── Page ──
 function Analytics() {
+  const { t } = useTranslation();
   const initial = Route.useLoaderData();
   const [data, setData] = useState<AnalyticsData>(initial);
   const [refreshing, setRefreshing] = useState(false);
@@ -342,31 +346,31 @@ function Analytics() {
         <div className="mx-auto max-w-6xl">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">📊 Analytics Dashboard</h1>
+              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{t("analytics.title")}</h1>
               <p className="mt-2 text-gray-400">
-                Real KPIs straight from the database — content, social, email, monetization — per niche, no placeholders.
+                {t("analytics.subtitle")}
               </p>
             </div>
             <button onClick={refresh} disabled={refreshing} className="rounded-lg border border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-300 transition-all duration-300 hover:border-gray-500 hover:text-white disabled:opacity-50">
-              {refreshing ? "Refreshing…" : "⟳ Refresh"}
+              {refreshing ? t("analytics.refreshing") : t("analytics.refresh")}
             </button>
           </div>
           {/* KPI cards */}
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <KpiCard label="Articles" value={String(kpis.articles)} sub={`${kpis.publishedArticles} published`} />
-            <KpiCard label="Social Posts" value={String(kpis.socialPosts)} sub={`${kpis.publishedPosts} published`} />
-            <KpiCard label="Subscribers" value={String(kpis.subscribers)} sub={`${kpis.subscribed} subscribed`} />
-            <KpiCard label="Campaigns" value={String(kpis.campaigns)} sub={`${kpis.sentCampaigns} sent`} />
-            <KpiCard label="Affiliate Links" value={String(kpis.affiliateLinks)} sub={`${kpis.activeLinks} active`} />
-            <KpiCard label="Ad Slots" value={String(kpis.adSlots)} sub={`${kpis.activeAdSlots} active`} />
-            <KpiCard label="Revenue Entries" value={String(kpis.revenueEntries)} sub={`$${fmtMoney(kpis.revenueTotal)} all-time`} />
-            <KpiCard label="Total Revenue" value={`$${fmtMoney(kpis.revenueTotal)}`} sub={`${kpis.revenueEntries} logged entries`} />
+            <KpiCard label={t("analytics.kpi.articles")} value={String(kpis.articles)} sub={t("analytics.published", { n: kpis.publishedArticles })} />
+            <KpiCard label={t("analytics.kpi.socialPosts")} value={String(kpis.socialPosts)} sub={t("analytics.published", { n: kpis.publishedPosts })} />
+            <KpiCard label={t("analytics.kpi.subscribers")} value={String(kpis.subscribers)} sub={t("analytics.subscribed", { n: kpis.subscribed })} />
+            <KpiCard label={t("analytics.kpi.campaigns")} value={String(kpis.campaigns)} sub={t("analytics.sent", { n: kpis.sentCampaigns })} />
+            <KpiCard label={t("analytics.kpi.affiliateLinks")} value={String(kpis.affiliateLinks)} sub={t("analytics.active", { n: kpis.activeLinks })} />
+            <KpiCard label={t("analytics.kpi.adSlots")} value={String(kpis.adSlots)} sub={t("analytics.active", { n: kpis.activeAdSlots })} />
+            <KpiCard label={t("analytics.kpi.revenueEntries")} value={String(kpis.revenueEntries)} sub={t("analytics.allTime", { amount: `$${fmtMoney(kpis.revenueTotal)}` })} />
+            <KpiCard label={t("analytics.kpi.totalRevenue")} value={`$${fmtMoney(kpis.revenueTotal)}`} sub={t("analytics.loggedEntries", { n: kpis.revenueEntries })} />
           </div>
           {/* Trend bars */}
           <div className="mt-6 grid gap-4 lg:grid-cols-2">
             <div className="glass-card rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-white">Content published</h3>
-              <p className="mt-0.5 text-xs text-gray-400">Last 6 months — articles + social posts (by created_at)</p>
+              <h3 className="text-sm font-semibold text-white">{t("analytics.contentPublished")}</h3>
+              <p className="mt-0.5 text-xs text-gray-400">{t("analytics.contentPublishedDesc")}</p>
               <div className="mt-4">
                 <TrendBars
                   data={data.contentMonthly.map((m) => ({ month: m.month, value: m.count, label: m.month }))}
@@ -375,8 +379,8 @@ function Analytics() {
               </div>
             </div>
             <div className="glass-card rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-white">Revenue by month</h3>
-              <p className="mt-0.5 text-xs text-gray-400">Last 6 months — revenue_entries (SUM(amount), USD default)</p>
+              <h3 className="text-sm font-semibold text-white">{t("analytics.revenueByMonth")}</h3>
+              <p className="mt-0.5 text-xs text-gray-400">{t("analytics.revenueByMonthDesc")}</p>
               <div className="mt-4">
                 <TrendBars
                   data={data.revenueMonthly.map((m) => ({ month: m.month, value: m.total, label: m.month }))}
@@ -389,20 +393,20 @@ function Analytics() {
       </section>
 
       {/* Per-niche breakdown */}
-      <Section title="Per-Niche Breakdown" description="Articles, social posts, subscribers, campaigns and revenue for every niche. Totals row summed from the same queries.">
+      <Section title={t("analytics.perNiche.title")} description={t("analytics.perNiche.desc")}>
         {data.niches.length === 0 ? (
-          <EmptyHint text="No niches created yet — create one and the breakdown will populate." />
+          <EmptyHint text={t("analytics.perNiche.empty")} />
         ) : (
           <div className="overflow-x-auto rounded-xl border border-gray-800/60">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-gray-800 text-xs uppercase tracking-wider text-gray-500">
-                  <th className="px-4 py-3">Niche</th>
-                  <th className="px-4 py-3 text-right">Articles</th>
-                  <th className="px-4 py-3 text-right">Social Posts</th>
-                  <th className="px-4 py-3 text-right">Subscribers</th>
-                  <th className="px-4 py-3 text-right">Campaigns</th>
-                  <th className="px-4 py-3 text-right">Revenue</th>
+                  <th className="px-4 py-3">{t("analytics.cols.niche")}</th>
+                  <th className="px-4 py-3 text-right">{t("analytics.cols.articles")}</th>
+                  <th className="px-4 py-3 text-right">{t("analytics.cols.socialPosts")}</th>
+                  <th className="px-4 py-3 text-right">{t("analytics.cols.subscribers")}</th>
+                  <th className="px-4 py-3 text-right">{t("analytics.cols.campaigns")}</th>
+                  <th className="px-4 py-3 text-right">{t("analytics.cols.revenue")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -420,7 +424,7 @@ function Analytics() {
                   </tr>
                 ))}
                 <tr className="bg-gray-900/60 font-semibold">
-                  <td className="px-4 py-3 text-white">Totals</td>
+                  <td className="px-4 py-3 text-white">{t("analytics.totals")}</td>
                   <td className="px-4 py-3 text-right text-white">{totals.articles}</td>
                   <td className="px-4 py-3 text-right text-white">{totals.social_posts}</td>
                   <td className="px-4 py-3 text-right text-white">{totals.subscribers}</td>
@@ -434,14 +438,14 @@ function Analytics() {
       </Section>
 
       {/* Engagement / health mini-section */}
-      <Section title="Engagement & Health" description="Live pipeline state — every figure is a COUNT() over the relevant table.">
+      <Section title={t("analytics.engagement.title")} description={t("analytics.engagement.desc")}>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <div className="glass-card rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-white">Email sends</h3>
-            <p className="mt-0.5 text-xs text-gray-400">email_sends by status</p>
+            <h3 className="text-sm font-semibold text-white">{t("analytics.engagement.emailSends")}</h3>
+            <p className="mt-0.5 text-xs text-gray-400">{t("analytics.engagement.emailSendsDesc")}</p>
             <div className="mt-4 space-y-2">
               {data.emailSendsByStatus.length === 0 ? (
-                <EmptyHint text="No email sends yet." />
+                <EmptyHint text={t("analytics.engagement.noEmailSends")} />
               ) : (
                 data.emailSendsByStatus.map((s) => (
                   <StatusRow
@@ -456,11 +460,11 @@ function Analytics() {
             </div>
           </div>
           <div className="glass-card rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-white">Social posts</h3>
-            <p className="mt-0.5 text-xs text-gray-400">social_posts by status</p>
+            <h3 className="text-sm font-semibold text-white">{t("analytics.engagement.socialPosts")}</h3>
+            <p className="mt-0.5 text-xs text-gray-400">{t("analytics.engagement.socialPostsDesc")}</p>
             <div className="mt-4 space-y-2">
               {data.socialPostsByStatus.length === 0 ? (
-                <EmptyHint text="No social posts yet." />
+                <EmptyHint text={t("analytics.engagement.noSocialPosts")} />
               ) : (
                 data.socialPostsByStatus.map((s) => (
                   <StatusRow
@@ -475,20 +479,20 @@ function Analytics() {
             </div>
           </div>
           <div className="glass-card rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-white">Email lists</h3>
-            <p className="mt-0.5 text-xs text-gray-400">lists with subscriber counts</p>
+            <h3 className="text-sm font-semibold text-white">{t("analytics.engagement.emailLists")}</h3>
+            <p className="mt-0.5 text-xs text-gray-400">{t("analytics.engagement.emailListsDesc")}</p>
             <div className="mt-4 space-y-2">
               {data.emailLists.length === 0 ? (
-                <EmptyHint text="No email lists yet." />
+                <EmptyHint text={t("analytics.engagement.noEmailLists")} />
               ) : (
                 data.emailLists.map((l) => (
                   <div key={l.id} className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-gray-200">{l.name}</p>
                       <p className="text-xs text-gray-500">
-                        {l.niche_name ?? "No niche"} ·{" "}
+                        {l.niche_name ?? t("analytics.noNiche")} ·{" "}
                         <span className={`inline-flex rounded-full border px-1.5 py-px text-[10px] uppercase tracking-wide ${LIST_STATUS_COLORS[l.status] ?? "bg-gray-800/60 text-gray-400 border-gray-600"}`}>
-                          {l.status}
+                          {t(`status.${l.status}`, { defaultValue: l.status })}
                         </span>
                       </p>
                     </div>

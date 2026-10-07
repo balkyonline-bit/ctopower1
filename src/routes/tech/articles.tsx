@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { articles } from "~/data/articles";
+import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/tech/articles")({
   head: () => ({
@@ -35,6 +36,7 @@ function formatDate(iso: string): string {
 }
 
 function ArticleIndex() {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col">
       {/* Header */}
@@ -44,14 +46,13 @@ function ArticleIndex() {
             href="/tech"
             className="mb-4 inline-flex items-center gap-1 text-sm text-indigo-400 hover:text-indigo-300"
           >
-            ← Back to Tech
+            {t("tech.backToTech")}
           </a>
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
-            Tech Articles
+            {t("tech.articlesTitle")}
           </h1>
           <p className="mt-3 text-lg text-gray-400">
-            Honest reviews, hands-on comparisons, and practical guides for AI
-            tools, SaaS, and no-code automation.
+            {t("tech.articlesSubtitle")}
           </p>
         </div>
       </section>
@@ -61,7 +62,7 @@ function ArticleIndex() {
         <div className="mx-auto max-w-5xl">
           {articles.length === 0 ? (
             <div className="py-20 text-center">
-              <p className="text-gray-500">No articles published yet. Check back soon.</p>
+              <p className="text-gray-500">{t("tech.noArticles")}</p>
             </div>
           ) : (
             <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
@@ -98,7 +99,7 @@ function ArticleIndex() {
                         {article.readingTime}
                       </span>
                       <span className="text-sm font-medium text-indigo-400 group-hover:text-indigo-300">
-                        Read →
+                        {t("articles.read")}
                       </span>
                     </div>
                   </div>
@@ -112,11 +113,9 @@ function ArticleIndex() {
       {/* Coming Soon */}
       <section className="border-t border-gray-800 px-6 py-16">
         <div className="mx-auto max-w-3xl text-center">
-          <h2 className="text-xl font-bold">More Articles Coming Soon</h2>
+          <h2 className="text-xl font-bold">{t("tech.moreComingTitle")}</h2>
           <p className="mt-2 text-gray-400">
-            We're publishing new hands-on reviews and guides weekly. Topics in
-            the pipeline: ChatGPT vs Claude vs Gemini, no-code automation
-            workflows, best AI coding assistants, and monthly AI tool roundups.
+            {t("tech.moreComingDesc")}
           </p>
         </div>
       </section>

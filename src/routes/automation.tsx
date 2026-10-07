@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "~/db";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 
 // ── Types ──
@@ -67,8 +68,6 @@ interface AutomationData {
 }
 
 const STEP_TYPES: StepType[] = ["create_article", "create_social_post", "send_email", "http_request", "delay"];
-const PIPELINE_NOTE =
-  "Trigger types are persisted (cron string + next_run_at). A background cron scheduler daemon is out of scope for this pass — use the Run now button to execute a workflow.";
 
 // ── Server: read (GET) ──
 const fetchAutomationData = createServerFn().handler(async () => {
@@ -494,6 +493,7 @@ function KpiCard({ label, value, sub }: { label: string; value: string; sub?: st
 }
 
 function StatusPill({ status }: { status: string }) {
+  const { t } = useTranslation();
   let color = "bg-yellow-900/60 text-yellow-400 border-yellow-500/30";
   if (status === "succeeded" || status === "active") color = "bg-green-900/60 text-green-400 border-green-500/30";
   else if (status === "failed" || status === "paused") color = "bg-red-900/60 text-red-400 border-red-500/30";
@@ -501,18 +501,14 @@ function StatusPill({ status }: { status: string }) {
   else if (status === "skipped") color = "bg-gray-800/60 text-gray-400 border-gray-600";
   return (
     <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${color}`}>
-      {status}
+      {t(`status.${status}`, { defaultValue: status })}
     </span>
   );
 }
 
-const STEP_LABELS: Record<StepType, string> = {
-  create_article: "Create article",
-  create_social_post: "Create social post",
-  send_email: "Send email",
-  http_request: "HTTP request",
-  delay: "Delay",
-};
+function stepLabel(type: string, t: (key: string, opts?: Record<string, unknown>) => string): string {
+  return t(`automation.stepType.${type}`, { defaultValue: type });
+}
 
 // ── Workflow form (create / edit metadata) ──
 function WorkflowForm({
@@ -526,6 +522,7 @@ function WorkflowForm({
   onSaved: () => void;
   onCancelEdit: () => void;
 }) {
+  const { t } = useTranslation();
   const [name, setName] = useState(editing?.name ?? "");
   const [nicheId, setNicheId] = useState(editing?.niche_id ?? "");
   const [triggerType, setTriggerType] = useState<TriggerType>(editing?.trigger_type ?? "manual");
@@ -558,7 +555,7 @@ function WorkflowForm({
       onCancelEdit();
       await onSaved();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save workflow");
+      setError(err instanceof Error ? err.message : t("automation.errorSaveWorkflow"));
     } finally {
       setBusy(false);
     }
@@ -567,42 +564,42 @@ function WorkflowForm({
   return (
     <form onSubmit={submit} className="glass-card rounded-xl space-y-4 p-5">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Field label="Workflow name *">
-          <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="Daily content pipeline" required />
+        <Field label={t("automation.form.name")}>
+          <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder={t("automation.form.namePlaceholder")} required />
         </Field>
-        <Field label="Niche">
+        <Field label={t("common.niche")}>
           <select className={inputCls} value={nicheId} onChange={(e) => setNicheId(e.target.value)}>
-            <option value="">— none —</option>
+            <option value="">{t("common.none")}</option>
             {niches.map((n) => (
               <option key={n.id} value={n.id}>{n.niche_name}</option>
             ))}
           </select>
         </Field>
-        <Field label="Trigger type">
+        <Field label={t("automation.form.triggerType")}>
           <select className={inputCls} value={triggerType} onChange={(e) => setTriggerType(e.target.value as TriggerType)}>
-            <option value="manual">Manual (Run now)</option>
-            <option value="schedule">Schedule (cron)</option>
-            <option value="event">Event</option>
+            <option value="manual">{t("automation.form.triggerManual")}</option>
+            <option value="schedule">{t("automation.form.triggerSchedule")}</option>
+            <option value="event">{t("automation.form.triggerEvent")}</option>
           </select>
         </Field>
-        <Field label="Description">
-          <input className={inputCls} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What does this workflow do?" />
+        <Field label={t("monetization.revenue.description")}>
+          <input className={inputCls} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("automation.form.descriptionPlaceholder")} />
         </Field>
       </div>
       {triggerType === "schedule" && (
-        <Field label="Schedule (cron expression)">
+        <Field label={t("automation.form.scheduleCron")}>
           <input className={inputCls} value={scheduleCron} onChange={(e) => setScheduleCron(e.target.value)} placeholder="0 6 * * *" />
-          <p className="mt-1 text-xs text-gray-500">{PIPELINE_NOTE}</p>
+          <p className="mt-1 text-xs text-gray-500">{t("automation.pipelineNote")}</p>
         </Field>
       )}
       <ErrorNote error={error} />
       <div className="flex items-center gap-3">
         <button type="submit" disabled={busy || !name.trim()} className={btnPrimary}>
-          {busy ? "Saving…" : editing ? "Update Workflow" : "+ Create Workflow"}
+          {busy ? t("common.saving") : editing ? t("automation.form.update") : t("automation.form.create")}
         </button>
         {editing && (
           <button type="button" onClick={onCancelEdit} className={btnGhost}>
-            Cancel edit
+            {t("common.cancelEdit")}
           </button>
         )}
       </div>
@@ -612,6 +609,7 @@ function WorkflowForm({
 
 // ── Step builder (visual, typed config editor) ──
 function StepEditor({ workflow, onChanged }: { workflow: Workflow; onChanged: () => void }) {
+  const { t } = useTranslation();
   const [stepType, setStepType] = useState<StepType>("create_article");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -691,14 +689,14 @@ function StepEditor({ workflow, onChanged }: { workflow: Workflow; onChanged: ()
       reset();
       await onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save step");
+      setError(err instanceof Error ? err.message : t("automation.errorSaveStep"));
     } finally {
       setBusy(false);
     }
   };
 
   const remove = async (st: WorkflowStep) => {
-    if (!confirm(`Delete step ${st.position} (${STEP_LABELS[st.type] ?? st.type})? This cannot be undone.`)) return;
+    if (!confirm(t("automation.confirmDeleteStep", { position: st.position, type: stepLabel(st.type, t) }))) return;
     await deleteStep({ data: st.id });
     await onChanged();
   };
@@ -722,8 +720,8 @@ function StepEditor({ workflow, onChanged }: { workflow: Workflow; onChanged: ()
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-xs text-gray-400">
-            <span className="font-semibold text-gray-300">{steps.length}</span> step{steps.length === 1 ? "" : "s"} —
-            <span className="text-gray-500"> swap ↑/↓ to reorder, each step stores typed config as JSONB</span>
+            <span className="font-semibold text-gray-300">{steps.length}</span> {steps.length === 1 ? t("automation.stepEditor.stepsOne") : t("automation.stepEditor.stepsMany")} —
+            <span className="text-gray-500"> {t("automation.stepEditor.stepsHint")}</span>
           </p>
         </div>
       </div>
@@ -731,15 +729,15 @@ function StepEditor({ workflow, onChanged }: { workflow: Workflow; onChanged: ()
       {/* Step list (visual builder) */}
       <div className="mt-4 overflow-x-auto rounded-lg border border-gray-800/60">
         {steps.length === 0 ? (
-          <EmptyHint text="No steps yet — add your first step below." />
+          <EmptyHint text={t("automation.stepEditor.noSteps")} />
         ) : (
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-gray-800 text-xs uppercase tracking-wider text-gray-500">
                 <th className="px-3 py-2">#</th>
-                <th className="px-3 py-2">Type</th>
-                <th className="px-3 py-2">Config (JSONB)</th>
-                <th className="px-3 py-2 text-right">Actions</th>
+                <th className="px-3 py-2">{t("automation.stepEditor.colType")}</th>
+                <th className="px-3 py-2">{t("automation.stepEditor.colConfig")}</th>
+                <th className="px-3 py-2 text-right">{t("common.col.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -747,17 +745,17 @@ function StepEditor({ workflow, onChanged }: { workflow: Workflow; onChanged: ()
                 <tr key={st.id} className="border-b border-gray-800/50 last:border-0">
                   <td className="px-3 py-2 text-gray-500">{st.position}</td>
                   <td className="px-3 py-2">
-                    <span className="font-medium text-white">{STEP_LABELS[st.type] ?? st.type}</span>
+                    <span className="font-medium text-white">{stepLabel(st.type, t)}</span>
                   </td>
                   <td className="max-w-xs truncate px-3 py-2 font-mono text-xs text-gray-400" title={configSummary(st)}>
                     {configSummary(st)}
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => move(st, "up")} disabled={i === 0} className={btnGhostSm} title="Move up">↑</button>
-                      <button onClick={() => move(st, "down")} disabled={i === steps.length - 1} className={btnGhostSm} title="Move down">↓</button>
-                      <button onClick={() => startEdit(st)} className={btnGhostSm}>Edit</button>
-                      <button onClick={() => remove(st)} className={btnDanger}>Delete</button>
+                      <button onClick={() => move(st, "up")} disabled={i === 0} className={btnGhostSm} title={t("automation.stepEditor.moveUp")}>↑</button>
+                      <button onClick={() => move(st, "down")} disabled={i === steps.length - 1} className={btnGhostSm} title={t("automation.stepEditor.moveDown")}>↓</button>
+                      <button onClick={() => startEdit(st)} className={btnGhostSm}>{t("common.edit")}</button>
+                      <button onClick={() => remove(st)} className={btnDanger}>{t("common.delete")}</button>
                     </div>
                   </td>
                 </tr>
@@ -770,34 +768,34 @@ function StepEditor({ workflow, onChanged }: { workflow: Workflow; onChanged: ()
       {/* Step form — typed config editor */}
       <form onSubmit={submit} className="mt-4 space-y-3">
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Step type">
+          <Field label={t("automation.stepEditor.stepTypeLabel")}>
             <select className={inputCls} value={stepType} onChange={(e) => setStepType(e.target.value as StepType)}>
-              {STEP_TYPES.map((t) => (
-                <option key={t} value={t}>{STEP_LABELS[t]}</option>
+              {STEP_TYPES.map((st) => (
+                <option key={st} value={st}>{stepLabel(st, t)}</option>
               ))}
             </select>
           </Field>
           {stepType === "create_article" || stepType === "create_social_post" ? (
-            <Field label="Title *">
-              <input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. 10 Proven Solar Panel Installers in Zagreb" />
+            <Field label={t("common.col.title")}>
+              <input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("automation.stepEditor.titlePlaceholder")} />
             </Field>
           ) : stepType === "send_email" ? (
-            <Field label="To (subscriber email)">
-              <input className={inputCls} value={to} onChange={(e) => setTo(e.target.value)} placeholder="subscriber@example.com" />
+            <Field label={t("automation.stepEditor.toLabel")}>
+              <input className={inputCls} value={to} onChange={(e) => setTo(e.target.value)} placeholder={t("automation.stepEditor.toPlaceholder")} />
             </Field>
           ) : stepType === "http_request" ? (
-            <Field label="URL">
-              <input className={inputCls} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://api.example.com/webhook" />
+            <Field label={t("monetization.links.url")}>
+              <input className={inputCls} value={url} onChange={(e) => setUrl(e.target.value)} placeholder={t("automation.stepEditor.urlPlaceholder")} />
             </Field>
           ) : (
-            <Field label="Delay (seconds)">
+            <Field label={t("automation.stepEditor.delayLabel")}>
               <input type="number" min={0} className={inputCls} value={seconds} onChange={(e) => setSeconds(e.target.value)} />
             </Field>
           )}
         </div>
         {stepType === "create_social_post" && (
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Platform">
+            <Field label={t("common.platform")}>
               <select className={inputCls} value={platform} onChange={(e) => setPlatform(e.target.value)}>
                 <option value="x">X / Twitter</option>
                 <option value="facebook">Facebook</option>
@@ -807,13 +805,13 @@ function StepEditor({ workflow, onChanged }: { workflow: Workflow; onChanged: ()
                 <option value="tiktok">TikTok</option>
               </select>
             </Field>
-            <Field label="Link">
-              <input className={inputCls} value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://…" />
+            <Field label={t("monetization.revenue.link")}>
+              <input className={inputCls} value={link} onChange={(e) => setLink(e.target.value)} placeholder={t("social.compose.linkPlaceholder")} />
             </Field>
           </div>
         )}
         {stepType === "http_request" && (
-          <Field label="Method">
+          <Field label={t("automation.stepEditor.methodLabel")}>
             <select className={inputCls} value={method} onChange={(e) => setMethod(e.target.value)}>
               <option value="GET">GET</option>
               <option value="POST">POST</option>
@@ -823,22 +821,22 @@ function StepEditor({ workflow, onChanged }: { workflow: Workflow; onChanged: ()
           </Field>
         )}
         {stepType === "send_email" && (
-          <Field label="Subject">
-            <input className={inputCls} value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Your weekly digest" />
+          <Field label={t("automation.stepEditor.subjectLabel")}>
+            <input className={inputCls} value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={t("automation.stepEditor.subjectPlaceholder")} />
           </Field>
         )}
         {(stepType === "create_article" || stepType === "create_social_post" || stepType === "send_email") && (
-          <Field label={stepType === "send_email" ? "Body" : "Content"}>
-            <textarea className={contentCls} value={content} onChange={(e) => setContent(e.target.value)} placeholder="Step content…" />
+          <Field label={stepType === "send_email" ? t("automation.stepEditor.bodyLabel") : t("automation.stepEditor.contentLabel")}>
+            <textarea className={contentCls} value={content} onChange={(e) => setContent(e.target.value)} placeholder={t("automation.stepEditor.contentPlaceholder")} />
           </Field>
         )}
         <ErrorNote error={error} />
         <div className="flex items-center gap-3">
           <button type="submit" disabled={busy} className={btnPrimary}>
-            {busy ? "Saving…" : editingId ? "Update Step" : "+ Add Step"}
+            {busy ? t("common.saving") : editingId ? t("automation.stepEditor.update") : t("automation.stepEditor.add")}
           </button>
           {editingId && (
-            <button type="button" onClick={reset} className={btnGhost}>Cancel edit</button>
+            <button type="button" onClick={reset} className={btnGhost}>{t("common.cancelEdit")}</button>
           )}
         </div>
       </form>
@@ -848,19 +846,20 @@ function StepEditor({ workflow, onChanged }: { workflow: Workflow; onChanged: ()
 
 // ── Run history per workflow ──
 function RunHistory({ runs, workflowId }: { runs: Run[]; workflowId: string }) {
+  const { t } = useTranslation();
   const wfRuns = runs.filter((r) => r.workflow_id === workflowId).slice(0, 10);
   return (
     <div className="mt-4 overflow-x-auto rounded-lg border border-gray-800/60">
       {wfRuns.length === 0 ? (
-        <EmptyHint text="No runs yet — hit Run now to execute this workflow." />
+        <EmptyHint text={t("automation.runHistory.noRuns")} />
       ) : (
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-gray-800 text-xs uppercase tracking-wider text-gray-500">
-              <th className="px-3 py-2">Status</th>
-              <th className="px-3 py-2">Started</th>
-              <th className="px-3 py-2">Finished</th>
-              <th className="px-3 py-2">Log</th>
+              <th className="px-3 py-2">{t("common.col.status")}</th>
+              <th className="px-3 py-2">{t("automation.runHistory.colStarted")}</th>
+              <th className="px-3 py-2">{t("automation.runHistory.colFinished")}</th>
+              <th className="px-3 py-2">{t("automation.runHistory.colLog")}</th>
             </tr>
           </thead>
           <tbody>
@@ -871,9 +870,9 @@ function RunHistory({ runs, workflowId }: { runs: Run[]; workflowId: string }) {
                 <td className="px-3 py-2 text-xs text-gray-400">{r.finished_at ? r.finished_at.replace("T", " ").slice(0, 19) : "—"}</td>
                 <td className="px-3 py-2">
                   <details className="group">
-                    <summary className="cursor-pointer text-xs text-indigo-400 hover:text-indigo-300">view log</summary>
+                    <summary className="cursor-pointer text-xs text-indigo-400 hover:text-indigo-300">{t("automation.runHistory.viewLog")}</summary>
                     <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded-lg border border-gray-800 bg-gray-950 p-2 font-mono text-[11px] leading-relaxed text-gray-300">
-                      {r.log ?? "(no log)"}
+                      {r.log ?? t("automation.runHistory.noLog")}
                     </pre>
                   </details>
                 </td>
@@ -898,6 +897,7 @@ function WorkflowCard({
   onChanged: () => void;
   onEdit: (w: Workflow) => void;
 }) {
+  const { t } = useTranslation();
   const [running, setRunning] = useState(false);
   const [runError, setRunError] = useState<string | null>(null);
   const [runNote, setRunNote] = useState<string | null>(null);
@@ -910,13 +910,13 @@ function WorkflowCard({
     try {
       const res = (await runWorkflow({ data: { id: workflow.id } })) as { success: boolean; status?: string; error?: string };
       if (!res.success) {
-        setRunError(res.error ?? "Run failed");
+        setRunError(res.error ?? t("automation.card.runFailed"));
       } else {
-        setRunNote(res.status === "succeeded" ? "Run succeeded — rows created (see PDP & run history)." : "Run recorded as failed — see run log.");
+        setRunNote(res.status === "succeeded" ? t("automation.card.runSucceeded") : t("automation.card.runRecordedFailed"));
       }
       await onChanged();
     } catch (err) {
-      setRunError(err instanceof Error ? err.message : "Run failed");
+      setRunError(err instanceof Error ? err.message : t("automation.card.runFailed"));
     } finally {
       setRunning(false);
     }
@@ -929,7 +929,7 @@ function WorkflowCard({
   };
 
   const remove = async () => {
-    if (!confirm(`Delete workflow "${workflow.name}"? Its steps and run history will be removed.`)) return;
+    if (!confirm(t("automation.confirmDeleteWorkflow", { name: workflow.name }))) return;
     await deleteWorkflow({ data: workflow.id });
     await onChanged();
   };
@@ -940,25 +940,25 @@ function WorkflowCard({
         <div className="flex items-center gap-2">
           <h3 className="text-lg font-semibold text-white">{workflow.name}</h3>
           <StatusPill status={workflow.status} />
-          <span className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2 py-0.5 text-xs capitalize text-indigo-300">{workflow.trigger_type}</span>
+          <span className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2 py-0.5 text-xs capitalize text-indigo-300">{t(`automation.trigger.${workflow.trigger_type}`, { defaultValue: workflow.trigger_type })}</span>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={runNow} disabled={running} className={btnPrimary + " !px-3 !py-1.5"} title="Execute all steps now and record a run">
-            {running ? "Running…" : "▶ Run now"}
+          <button onClick={runNow} disabled={running} className={btnPrimary + " !px-3 !py-1.5"} title={t("automation.card.runNowTitle")}>
+            {running ? t("automation.card.running") : t("automation.card.runNow")}
           </button>
-          <button onClick={() => onEdit(workflow)} className={btnGhost} title="Edit workflow details">Edit</button>
-          <button onClick={toggleStatus} className={btnGhost} title="Toggle draft / active / paused">
-            {workflow.status === "active" ? "Pause" : workflow.status === "paused" ? "Set draft" : "Activate"}
+          <button onClick={() => onEdit(workflow)} className={btnGhost} title={t("automation.card.editTitle")}>{t("common.edit")}</button>
+          <button onClick={toggleStatus} className={btnGhost} title={t("automation.card.toggleTitle")}>
+            {workflow.status === "active" ? t("monetization.pause") : workflow.status === "paused" ? t("automation.card.setDraft") : t("monetization.activate")}
           </button>
-          <button onClick={remove} className={btnDanger}>Delete</button>
+          <button onClick={remove} className={btnDanger}>{t("common.delete")}</button>
         </div>
       </div>
       <p className="mt-1 text-xs text-gray-400">
-        {workflow.niche_name ? `Niche: ${workflow.niche_name} · ` : "No niche · "}
-        {workflow.step_count} step{workflow.step_count === 1 ? "" : "s"}
-        {workflow.schedule_cron ? ` · cron: ${workflow.schedule_cron}` : ""}
-        {workflow.last_run_at ? ` · last run: ${workflow.last_run_at.replace("T", " ").slice(0, 19)}` : ""}
-        {workflow.next_run_at ? ` · next run: ${workflow.next_run_at.replace("T", " ").slice(0, 19)}` : ""}
+        {workflow.niche_name ? `${t("automation.card.nichePrefix")}: ${workflow.niche_name} · ` : `${t("automation.card.noNiche")} · `}
+        {workflow.step_count} {workflow.step_count === 1 ? t("automation.stepEditor.stepsOne") : t("automation.stepEditor.stepsMany")}
+        {workflow.schedule_cron ? ` · ${t("automation.card.cronPrefix")}: ${workflow.schedule_cron}` : ""}
+        {workflow.last_run_at ? ` · ${t("automation.card.lastRunPrefix")}: ${workflow.last_run_at.replace("T", " ").slice(0, 19)}` : ""}
+        {workflow.next_run_at ? ` · ${t("automation.card.nextRunPrefix")}: ${workflow.next_run_at.replace("T", " ").slice(0, 19)}` : ""}
       </p>
       {workflow.description && <p className="mt-1 max-w-2xl text-sm text-gray-300">{workflow.description}</p>}
       <ErrorNote error={runError} />
@@ -972,6 +972,7 @@ function WorkflowCard({
 
 // ── Page ──
 function Automation() {
+  const { t } = useTranslation();
   const initial = Route.useLoaderData();
   const [data, setData] = useState<AutomationData>(initial);
   const [refreshing, setRefreshing] = useState(false);
@@ -995,26 +996,26 @@ function Automation() {
         <div className="mx-auto max-w-6xl">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">⚙️ Automation Engine</h1>
+              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{t("automation.title")}</h1>
               <p className="mt-2 max-w-2xl text-gray-400">
-                Scheduled workflows, a daily content pipeline, and a Zapier/Make-style step builder. Every workflow, step and run is a real DB row — Run now executes the steps for real. {PIPELINE_NOTE}
+                {t("automation.subtitle")} {t("automation.pipelineNote")}
               </p>
             </div>
             <button onClick={refresh} disabled={refreshing} className="rounded-lg border border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-300 transition-all duration-300 hover:border-gray-500 hover:text-white disabled:opacity-50">
-              {refreshing ? "Refreshing…" : "⟳ Refresh"}
+              {refreshing ? t("analytics.refreshing") : t("analytics.refresh")}
             </button>
           </div>
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <KpiCard label="Workflows" value={String(kpis.workflows)} sub={`${kpis.activeWorkflows} active`} />
-            <KpiCard label="Steps" value={String(kpis.totalSteps)} sub="across all workflows" />
-            <KpiCard label="Runs" value={String(kpis.totalRuns)} sub={`${kpis.succeededRuns} succeeded`} />
-            <KpiCard label="Failed Runs" value={String(kpis.failedRuns)} sub="recorded with logs" />
+            <KpiCard label={t("analytics.engagement.workflows")} value={String(kpis.workflows)} sub={t("analytics.active", { n: kpis.activeWorkflows })} />
+            <KpiCard label={t("automation.kpi.steps")} value={String(kpis.totalSteps)} sub={t("automation.kpi.acrossAll")} />
+            <KpiCard label={t("automation.kpi.runs")} value={String(kpis.totalRuns)} sub={t("automation.kpi.succeeded", { n: kpis.succeededRuns })} />
+            <KpiCard label={t("automation.kpi.failedRuns")} value={String(kpis.failedRuns)} sub={t("automation.kpi.recordedWithLogs")} />
           </div>
         </div>
       </section>
 
       {/* Create / edit workflow */}
-      <Section title="Build a Workflow" description="Name it, pick a trigger (manual / schedule / event), optionally scope it to a niche. Cron is persisted here; a scheduler daemon is out of scope — use Run now to execute.">
+      <Section title={t("automation.buildTitle")} description={t("automation.buildDesc")}>
         <WorkflowForm
           editing={editing}
           niches={data.niches}
@@ -1023,16 +1024,16 @@ function Automation() {
         />
         {editing && (
           <p className="mt-2 text-xs text-gray-500">
-            Editing <span className="text-indigo-400">{editing.name}</span> — update and save, or cancel.
+            {t("automation.editingPrefix")} <span className="text-indigo-400">{editing.name}</span> {t("automation.editingSuffix")}
           </p>
         )}
       </Section>
 
       {/* Workflows */}
-      <Section title="Workflows" description="Each card holds the visual step builder, Run now control, status toggle and run history.">
+      <Section title={t("analytics.engagement.workflows")} description={t("automation.workflowsDesc")}>
         {data.workflows.length === 0 ? (
           <div className="glass-card rounded-xl p-5">
-            <EmptyHint text="No workflows yet — create your first one above. Then add steps (create article, create social post, delay, http_request…) and hit Run now." />
+            <EmptyHint text={t("automation.noWorkflows")} />
           </div>
         ) : (
           <div className="space-y-6">
