@@ -225,6 +225,36 @@
       "scheduled": "Zakazano"
     }
   },
+  "techDev": {
+    "badge": "Razvojni agenti",
+    "heading": "Razvojni tim",
+    "subtitle": "Pet specijaliziranih AI agenata vodi projekt od PRD-a do recenzije prije izdavanja. Svako pokretanje pravi je zadatak izvršen na platformi — rezultat ispod je stvarni izlaz agenta, spremljen u povijest zadataka.",
+    "skillsLabel": "Vještine",
+    "toolsLabel": "Alati",
+    "noTools": "Nema registriranih alata",
+    "projectLabel": "Naziv projekta (neobavezno)",
+    "projectPlaceholder": "npr. korisnički portal",
+    "runTask": "Pokreni zadatak",
+    "running": "Pokrećem…",
+    "tasksCompleted": "Dovršenih zadataka: {{count}}",
+    "lastRun": "Zadnje pokretanje: {{time}}",
+    "neverRun": "Još nije pokrenuto",
+    "resultLabel": "Rezultat",
+    "resultEmpty": "Još nema rezultata — pokrenite zadatak da vidite izlaz agenta.",
+    "taskCreated": "Zadatak stvoren: {{title}}",
+    "failedResult": "Zadatak nije uspio",
+    "loadError": "Razvojni tim nije moguće učitati",
+    "runError": "Zadatak nije moguće pokrenuti",
+    "loading": "Učitavam razvojne agente…",
+    "footerNote": "Jezik sučelja: {{language}}. Imena agenata, vještine i alati prikazani su u izvornom obliku.",
+    "status": {
+      "idle": "Neaktivan",
+      "pending": "Na čekanju",
+      "in_progress": "U tijeku",
+      "completed": "Dovršeno",
+      "failed": "Neuspješno"
+    }
+  },
   "language": {
     "switcher": "Jezik",
     "en": "Engleski",

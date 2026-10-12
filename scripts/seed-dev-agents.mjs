@@ -12,7 +12,9 @@
 import pg from "pg";
 
 const DB_URL =
-  process.env.DATABASE_URL ||
+  (process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith("postgres")
+    ? process.env.DATABASE_URL
+    : "") ||
   "postgresql://neondb_owner:npg_kc5JPHY8FVSI@ep-shy-night-axrtgbvl-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require";
 
 const DEV_AGENTS = [
@@ -71,14 +73,6 @@ const values = DEV_AGENTS.map(
     `(${esc(a.name)}, ${esc(a.role)}, ${esc(a.description)}, ${esc(a.instructions)}, ${arr(a.tools)}, 'idle', 0, 1.0)`,
 ).join(",\n");
 
-const client = new pg.Client({
-  connectionString: DB_URL,
-  ssl: { rejectUnauthorized: false },
-  connectionTimeoutMillis: 15000,
-});
-await client.connect();
-console.log("connected");
-
 // One statement on purpose: node-pg re-uses the unnamed prepared statement, and
 // the Neon pooler runs in transaction mode — repeating the same parameterised
 // INSERT five times deadlocks against it. Distinct text (or a single statement)
@@ -95,22 +89,77 @@ ON CONFLICT (role) DO UPDATE SET
 RETURNING id, name, role, (xmax = 0) AS inserted
 `;
 
-// Unique index on role is what makes ON CONFLICT (role) work.
-await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_agents_role_unique ON ai_agents (role)`);
-console.log("index ok");
-
-const res = await client.query(upsertSql);
-for (const r of res.rows) {
-  console.log(`${r.inserted ? "INSERTED" : "UPDATED "} ${r.role.padEnd(18)} id=${r.id} name="${r.name}"`);
+/**
+ * One full seed attempt against a brand-new client. The Neon pooler
+ * intermittently answers with "timeout expired" while a plain inline node
+ * script with connectionTimeoutMillis: 30000 gets through, so every attempt
+ * gets a fresh Client (a failed Client cannot be reconnected) and a generous
+ * connection timeout.
+ */
+async function attemptSeed() {
+  const client = new pg.Client({
+    connectionString: DB_URL,
+    ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: 30000,
+  });
+  // Without an error listener a late socket error is emitted as an uncaught
+  // event and kills the process instead of surfacing as a retryable failure.
+  client.on("error", () => {});
+  await client.connect();
+  console.log("connected");
+  try {
+    // Unique index on role is what makes ON CONFLICT (role) work.
+    await client.query(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_agents_role_unique ON ai_agents (role)`,
+    );
+    console.log("index ok");
+    const res = await client.query(upsertSql);
+    for (const r of res.rows) {
+      console.log(
+        `${r.inserted ? "INSERTED" : "UPDATED "} ${r.role.padEnd(18)} id=${r.id} name="${r.name}"`,
+      );
+    }
+    const rows = await client.query(
+      `SELECT id, name, role, tools, status, tasks_completed FROM ai_agents ORDER BY created_at, role`,
+    );
+    console.log(`\nai_agents total: ${rows.rows.length}`);
+    for (const r of rows.rows) {
+      console.log(
+        `  ${r.role.padEnd(18)} | ${r.name.padEnd(26)} | tools=[${r.tools.join(", ")}] | status=${r.status} | done=${r.tasks_completed}`,
+      );
+    }
+  } finally {
+    try {
+      await client.end();
+    } catch {
+      /* connection already dead — nothing to close */
+    }
+  }
 }
 
-const rows = await client.query(
-  `SELECT id, name, role, tools, status, tasks_completed FROM ai_agents ORDER BY created_at, role`,
-);
-console.log(`\nai_agents total: ${rows.rows.length}`);
-for (const r of rows.rows) {
-  console.log(`  ${r.role.padEnd(18)} | ${r.name.padEnd(26)} | tools=[${r.tools.join(", ")}] | status=${r.status} | done=${r.tasks_completed}`);
+const MAX_ATTEMPTS = Number(process.env.SEED_ATTEMPTS || 5);
+const BACKOFF_MS = Number(process.env.SEED_BACKOFF_MS || 4000);
+let lastError;
+let seeded = false;
+
+for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+  try {
+    console.log(`--- seed attempt ${attempt}/${MAX_ATTEMPTS} ---`);
+    await attemptSeed();
+    seeded = true;
+    break;
+  } catch (err) {
+    lastError = err;
+    console.error(`attempt ${attempt}/${MAX_ATTEMPTS} failed: ${err?.message || err}`);
+    if (attempt < MAX_ATTEMPTS) {
+      console.log(`retrying in ${BACKOFF_MS}ms...`);
+      await new Promise((resolve) => setTimeout(resolve, BACKOFF_MS));
+    }
+  }
 }
 
-await client.end();
+if (!seeded) {
+  console.error(`\nFAILED after ${MAX_ATTEMPTS} attempts: ${lastError?.message || lastError}`);
+  process.exit(1);
+}
 console.log("\nDev agent seed complete.");

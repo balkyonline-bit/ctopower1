@@ -743,6 +743,36 @@
       "bestFor": "Best For"
     }
   },
+  "techDev": {
+    "badge": "Development Agents",
+    "heading": "Development Team",
+    "subtitle": "Five specialised AI agents take a project from PRD to pre-release review. Every run is a real task executed on the platform — the result shown below is the agent's actual output, stored in the task history.",
+    "skillsLabel": "Skills",
+    "toolsLabel": "Tools",
+    "noTools": "No tools registered",
+    "projectLabel": "Project name (optional)",
+    "projectPlaceholder": "e.g. customer portal",
+    "runTask": "Run task",
+    "running": "Running…",
+    "tasksCompleted": "Tasks completed: {{count}}",
+    "lastRun": "Last run: {{time}}",
+    "neverRun": "Not run yet",
+    "resultLabel": "Result",
+    "resultEmpty": "No result yet — run a task to see this agent's output.",
+    "taskCreated": "Task created: {{title}}",
+    "failedResult": "Task failed",
+    "loadError": "Could not load the development team",
+    "runError": "Could not run the task",
+    "loading": "Loading development agents…",
+    "footerNote": "Interface language: {{language}}. Agent names, skills and tools are kept in their original form.",
+    "status": {
+      "idle": "Idle",
+      "pending": "Pending",
+      "in_progress": "Running",
+      "completed": "Completed",
+      "failed": "Failed"
+    }
+  },
   "language": {
     "switcher": "Language",
     "en": "English",
