@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "~/db";
 import { useTranslation } from "react-i18next";
@@ -101,6 +101,13 @@ function readingTime(wordCount: number): string {
 function NicheArticlesPage() {
   const { slug, profile, articles } = Route.useLoaderData();
   const { t } = useTranslation();
+  // This file is both the article index and the parent route of
+  // /niche/$slug/articles/$articleSlug. Render the index only for the exact
+  // article-list path; the article detail renders through the Outlet.
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  if (pathname.replace(/\/+$/, "") !== "/niche/" + slug + "/articles") {
+    return <Outlet />;
+  }
 
   const displayName = profile
     ? profile.niche_name
