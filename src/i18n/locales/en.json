@@ -11,7 +11,15 @@
     "social": "Social",
     "email": "📧 Email",
     "analytics": "Analytics",
-    "automation": "Automation"
+    "automation": "Automation",
+    "toolsLabel": "Tools",
+    "tools": {
+      "product_manager": "Product Manager",
+      "software_architect": "Software Architect",
+      "developer": "Developer",
+      "qa_tester": "QA Tester",
+      "product_reviewer": "Product Reviewer"
+    }
   },
   "footer": {
     "poweredBy": "Powered by EmpireAI",
@@ -771,6 +779,83 @@
       "in_progress": "Running",
       "completed": "Completed",
       "failed": "Failed"
+    },
+    "openTool": "Open tool page",
+    "toolPage": {
+      "backToTech": "← All development agents",
+      "badge": "Development agent",
+      "roleLabel": "Role",
+      "statusLabel": "Status",
+      "metaTitle": "{{name}} — how to use | EmpireAI",
+      "metaDescription": "Step-by-step instructions and a video tutorial for using the {{name}} AI agent.",
+      "notFound": "No development agent has the role \"{{role}}\".",
+      "backHome": "Back to /tech"
+    },
+    "howTo": {
+      "heading": "How to use",
+      "subtitle": "Follow the numbered steps on the left; the video tutorial on the right shows the same flow on screen.",
+      "stepsLabel": "Step by step",
+      "videoLabel": "Video tutorial",
+      "step": "Step {{number}}",
+      "product_manager": [
+        "Enter the product or project name in the field above (for example: \"Balkys Empire portal\").",
+        "Click Run task — the Product Manager writes a PRD: goals, target users, scope and success metrics.",
+        "Read the result in the Result panel and check which assumptions it challenges.",
+        "Copy the goals and the scope into your backlog and adjust the priorities to your own reality.",
+        "Re-run it with a more specific project name whenever the scope changes — every run creates a new task you can compare."
+      ],
+      "software_architect": [
+        "Run the Product Manager first (or paste your requirements into the project field) so the architect has a scope.",
+        "Enter the project name and click Run task — you get a technical architecture: stack, components, data model, integrations.",
+        "Check the data model and the API boundaries against your own stack and cross out what you will not build.",
+        "Turn the proposed components into tickets — split them by module and add them to your board.",
+        "Re-run it after every major decision so the architecture document stays current."
+      ],
+      "developer": [
+        "Enter the project name and click Run task — the Developer proposes the implementation of the core modules.",
+        "Read the implementation plan and keep its structure (files, functions, order of work).",
+        "Copy the code blocks into your repository and replace the placeholder values with your own.",
+        "Run the code locally and fix the errors before you move on to the next module.",
+        "Repeat module by module — each run creates a separate task whose result you can revisit."
+      ],
+      "qa_tester": [
+        "Enter the project name and click Run task — you get a test plan with the test runner and the critical paths covered.",
+        "Turn every listed case into a real test in your suite (unit and integration).",
+        "Run the suite on every change; a case that cannot fail is not a test — rewrite it.",
+        "Write down failing cases with their input data and the expected result before you start fixing.",
+        "Re-run the tester after each release to extend the plan with the new behaviour."
+      ],
+      "product_reviewer": [
+        "Run the Developer and the QA Tester first so there is something real to review.",
+        "Enter the project or release name and click Run task — you get a security and quality review (OWASP checklist, static analysis).",
+        "Go through the findings by severity and fix everything marked high or critical before release.",
+        "Mark each finding as fixed, accepted risk or false positive, with a one-line reason.",
+        "Re-run the review after the fixes to confirm that nothing regressed."
+      ]
+    },
+    "video": {
+      "urlLabel": "Video URL",
+      "urlPlaceholder": "https://www.youtube.com/watch?v=…  ·  https://vimeo.com/…  ·  https://example.com/clip.mp4",
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "Video saved",
+      "clear": "Clear",
+      "cleared": "Video cleared",
+      "upload": "Upload video",
+      "uploading": "Uploading…",
+      "hint": "Paste a link from any platform (YouTube, Vimeo, Dailymotion, direct .mp4/.webm link) or upload a video file — video/*, max 50 MB.",
+      "empty": "No video set yet",
+      "invalidUrl": "Enter a valid http(s) video URL.",
+      "openExternal": "Open in a new tab",
+      "embedNote": "If the video does not load, its source does not allow embedding — open it in a new tab.",
+      "uploadedFile": "Uploaded file",
+      "errorPrefix": "Video error",
+      "err": {
+        "too_large": "The file is larger than 50 MB.",
+        "bad_type": "Only video files (video/*) are allowed.",
+        "bad_request": "No file was received.",
+        "server_error": "The upload failed — try again."
+      }
     }
   },
   "language": {

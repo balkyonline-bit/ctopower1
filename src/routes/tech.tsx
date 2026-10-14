@@ -1,8 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getSql } from "~/db";
+import { toolPath } from "~/lib/dev-roles";
 
 export const Route = createFileRoute("/tech")({
   head: () => ({
@@ -391,11 +392,19 @@ function DevAgentsSection() {
                     </span>
                   </div>
 
+                  <a
+                    href={toolPath(agent.role)}
+                    data-tool-page-link={agent.role}
+                    className="mt-5 block w-full rounded-xl border border-indigo-500/40 bg-indigo-500/10 px-5 py-2.5 text-center text-sm font-semibold text-indigo-200 transition hover:bg-indigo-500/20"
+                  >
+                    {t("techDev.openTool")}
+                  </a>
+
                   <button
                     type="button"
                     onClick={() => handleRun(agent)}
                     disabled={isRunning || runningId !== null}
-                    className="mt-5 w-full rounded-xl bg-gradient-to-r from-indigo-500 to-blue-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:shadow-indigo-500/40 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="mt-3 w-full rounded-xl bg-gradient-to-r from-indigo-500 to-blue-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:shadow-indigo-500/40 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {isRunning ? t("techDev.running") : t("techDev.runTask")}
                   </button>
@@ -436,6 +445,12 @@ function DevAgentsSection() {
 
 function TechLanding() {
   const { t } = useTranslation();
+  // /tech is the landing page, but dotted file routing also makes it the parent
+  // route of /tech/tools/$role and /tech/articles/*. Render the landing markup
+  // only for the exact /tech path and let child routes render through the
+  // Outlet — without this the child page is shadowed by this landing page.
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  if (pathname.replace(/\/+$/, "") !== "/tech") return <Outlet />;
   return (
     <div className="flex flex-col">
       {/* Hero */}
