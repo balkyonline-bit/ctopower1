@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { getSql, hasDatabase } from "~/db";
 import { useTranslation } from "react-i18next";
@@ -40,6 +40,12 @@ export const Route = createFileRoute("/niche/$slug")({
 function NichePage() {
   const { slug, articleCount, dbConnected } = Route.useLoaderData();
   const { t } = useTranslation();
+  // /niche/$slug is the niche landing page, but dotted file routing also makes
+  // it the parent route of /niche/$slug/articles/*. Render the landing markup
+  // only for the exact /niche/<slug> path and let child routes render through
+  // the Outlet — without this the child page is shadowed by this landing page.
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  if (pathname.replace(/\/+$/, "") !== "/niche/" + slug) return <Outlet />;
 
   const displayName = slug
     .split("-")

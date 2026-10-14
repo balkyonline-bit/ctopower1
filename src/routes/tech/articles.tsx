@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router";
 import { articles } from "~/data/articles";
 import { useTranslation } from "react-i18next";
 
@@ -37,6 +37,11 @@ function formatDate(iso: string): string {
 
 function ArticleIndex() {
   const { t } = useTranslation();
+  // This file is both the article index and the parent route of
+  // /tech/articles/article. Render the index only for the exact /tech/articles
+  // path so the article detail page is not shadowed by it.
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  if (pathname.replace(/\/+$/, "") !== "/tech/articles") return <Outlet />;
   return (
     <div className="flex flex-col">
       {/* Header */}
