@@ -8,6 +8,7 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import "~/i18n/index";
 import { SUPPORTED_LANGUAGES, LANGUAGE_LABELS, LANG_STORAGE_KEY, type SupportedLanguage } from "~/i18n/index";
+import { DEV_ROLES, ROLE_ICONS, toolPath } from "~/lib/dev-roles";
 
 import appCss from "~/styles/app.css?url";
 
@@ -69,6 +70,15 @@ function NavBar() {
     { name: t("nav.demo"), href: "/tech" },
   ] as const;
 
+  // Every development agent has its own page (/tech/tools/<role>); the list
+  // feeds both the desktop "Tools" dropdown and the mobile hamburger menu.
+  const TOOL_LINKS = DEV_ROLES.map((role) => ({
+    role,
+    name: t(`nav.tools.${role}`),
+    href: toolPath(role),
+    icon: ROLE_ICONS[role] ?? "🤖",
+  }));
+
   const handleLanguageSwitch = (lang: SupportedLanguage) => {
     i18n.changeLanguage(lang);
     localStorage.setItem(LANG_STORAGE_KEY, lang);
@@ -94,6 +104,26 @@ function NavBar() {
               {link.name}
             </a>
           ))}
+          {/* Tools — one page per development agent */}
+          <details className="relative" data-nav-tools="desktop">
+            <summary className="cursor-pointer list-none text-sm text-gray-400 transition hover:text-gray-200">
+              {t("nav.toolsLabel")} ▾
+            </summary>
+            <ul className="absolute right-0 top-full z-50 mt-2 w-60 rounded-xl border border-gray-800 bg-gray-900 py-2 shadow-xl">
+              {TOOL_LINKS.map((tool) => (
+                <li key={tool.href}>
+                  <a
+                    href={tool.href}
+                    data-tool-nav-link={tool.role}
+                    className="block px-4 py-2 text-sm text-gray-400 hover:bg-gray-800 hover:text-gray-200"
+                  >
+                    <span className="mr-2">{tool.icon}</span>
+                    {tool.name}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </details>
           {/* Language Switcher */}
           <div className="flex items-center gap-1 border-l border-gray-700 pl-4 ml-2">
             {SUPPORTED_LANGUAGES.map((lang) => (
@@ -137,7 +167,7 @@ function NavBar() {
                 />
               </svg>
             </summary>
-            <ul className="absolute right-0 top-full mt-1 w-48 rounded-xl border border-gray-800 bg-gray-900 py-2 shadow-xl">
+            <ul className="absolute right-0 top-full mt-1 max-h-[80vh] w-60 overflow-y-auto rounded-xl border border-gray-800 bg-gray-900 py-2 shadow-xl">
               {NAV_LINKS.map((link) => (
                 <li key={link.href}>
                   <a
@@ -148,6 +178,26 @@ function NavBar() {
                   </a>
                 </li>
               ))}
+              {/* Tools — every tool page is reachable from the hamburger menu */}
+              <li className="mt-1 border-t border-gray-800 pt-1" data-nav-tools="mobile">
+                <span className="block px-4 py-1 text-xs font-medium uppercase tracking-wider text-indigo-400">
+                  {t("nav.toolsLabel")}
+                </span>
+                <ul>
+                  {TOOL_LINKS.map((tool) => (
+                    <li key={tool.href}>
+                      <a
+                        href={tool.href}
+                        data-tool-nav-link={tool.role}
+                        className="block px-4 py-2 text-sm text-gray-400 hover:bg-gray-800 hover:text-gray-200"
+                      >
+                        <span className="mr-2">{tool.icon}</span>
+                        {tool.name}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </li>
               <li className="border-t border-gray-800 mt-1 pt-1">
                 {SUPPORTED_LANGUAGES.map((lang) => (
                   <button

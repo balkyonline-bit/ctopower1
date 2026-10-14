@@ -11,7 +11,15 @@
     "social": "Društvene mreže",
     "email": "📧 Email",
     "analytics": "Analitika",
-    "automation": "Automatizacija"
+    "automation": "Automatizacija",
+    "toolsLabel": "Alati",
+    "tools": {
+      "product_manager": "Product Manager",
+      "software_architect": "Software Architect",
+      "developer": "Developer",
+      "qa_tester": "QA Tester",
+      "product_reviewer": "Product Reviewer"
+    }
   },
   "footer": {
     "poweredBy": "Pokreće EmpireAI",
@@ -253,6 +261,83 @@
       "in_progress": "U tijeku",
       "completed": "Dovršeno",
       "failed": "Neuspješno"
+    },
+    "openTool": "Otvori stranicu alata",
+    "toolPage": {
+      "backToTech": "← Svi razvojni agenti",
+      "badge": "Razvojni agent",
+      "roleLabel": "Uloga",
+      "statusLabel": "Status",
+      "metaTitle": "{{name}} — kako koristiti | EmpireAI",
+      "metaDescription": "Upute korak po korak i video uputa za korištenje AI agenta {{name}}.",
+      "notFound": "Nijedan razvojni agent nema ulogu \"{{role}}\".",
+      "backHome": "Natrag na /tech"
+    },
+    "howTo": {
+      "heading": "Kako koristiti",
+      "subtitle": "Slijedite numerirane korake lijevo; video uputa desno prikazuje isti postupak na ekranu.",
+      "stepsLabel": "Korak po korak",
+      "videoLabel": "Video uputa",
+      "step": "Korak {{number}}",
+      "product_manager": [
+        "Upišite naziv proizvoda ili projekta u polje iznad (na primjer: \"Balkys Empire portal\").",
+        "Kliknite Pokreni zadatak — Product Manager piše PRD: ciljeve, ciljane korisnike, opseg i mjerila uspjeha.",
+        "Pročitajte rezultat u panelu Rezultat i provjerite koje pretpostavke dovodi u pitanje.",
+        "Prepišite ciljeve i opseg u svoj backlog, a prioritete prilagodite svojim uvjetima.",
+        "Ponovno pokrenite s preciznijim nazivom projekta kad se opseg promijeni — svako pokretanje stvara novi zadatak koji možete usporediti."
+      ],
+      "software_architect": [
+        "Prvo pokrenite Product Managera (ili zalijepite zahtjeve u polje projekta) kako bi arhitekt imao opseg.",
+        "Upišite naziv projekta i kliknite Pokreni zadatak — dobivate tehničku arhitekturu: stack, komponente, model podataka, integracije.",
+        "Provjerite model podataka i granice API-ja prema svom stacku i precrtajte ono što nećete graditi.",
+        "Pretvorite predložene komponente u zadatke — razdijelite ih po modulima i dodajte na ploču.",
+        "Ponovno pokrenite nakon svake važnije odluke kako bi dokument arhitekture ostao aktualan."
+      ],
+      "developer": [
+        "Upišite naziv projekta i kliknite Pokreni zadatak — Developer predlaže implementaciju temeljnih modula.",
+        "Pročitajte plan implementacije i zadržite njegovu strukturu (datoteke, funkcije, redoslijed rada).",
+        "Prekopirajte blokove koda u svoj repozitorij i zamijenite priručne vrijednosti svojima.",
+        "Pokrenite kod lokalno i ispravite greške prije nego prijeđete na sljedeći modul.",
+        "Ponavljajte modul po modul — svako pokretanje stvara zaseban zadatak s vlastitim rezultatom."
+      ],
+      "qa_tester": [
+        "Upišite naziv projekta i kliknite Pokreni zadatak — dobivate plan testiranja s runnerom i pokrivenim kritičnim putanjama.",
+        "Pretvorite svaki navedeni slučaj u pravi test u svom paketu (unit i integracijski).",
+        "Pokrećite paket pri svakoj promjeni; slučaj koji ne može pasti nije test — prepišite ga.",
+        "Zapišite slučajeve koji padaju, s ulaznim podacima i očekivanim rezultatom, prije nego počnete ispravljati.",
+        "Ponovno pokrenite tester nakon svakog izdanja kako biste plan proširili novim ponašanjem."
+      ],
+      "product_reviewer": [
+        "Prvo pokrenite Developera i QA Testera kako bi imalo što stvarno pregledati.",
+        "Upišite naziv projekta ili izdanja i kliknite Pokreni zadatak — dobivate sigurnosni i kvalitativni pregled (OWASP lista, statička analiza).",
+        "Prođite kroz nalaze po težini i ispravite sve što je označeno kao visoko ili kritično prije izdanja.",
+        "Označite svaki nalaz kao ispravljen, prihvaćen rizik ili lažno pozitivan, uz jednoobrazloženje u jednom redu.",
+        "Ponovno pokrenite pregled nakon ispravaka kako biste potvrdili da se ništa nije pokvarilo."
+      ]
+    },
+    "video": {
+      "urlLabel": "URL videa",
+      "urlPlaceholder": "https://www.youtube.com/watch?v=…  ·  https://vimeo.com/…  ·  https://example.com/clip.mp4",
+      "save": "Spremi",
+      "saving": "Spremanje…",
+      "saved": "Video spremljen",
+      "clear": "Očisti",
+      "cleared": "Video obrisan",
+      "upload": "Prenesi video",
+      "uploading": "Prijenos…",
+      "hint": "Zalijepite poveznicu s bilo koje platforme (YouTube, Vimeo, Dailymotion, izravna .mp4/.webm poveznica) ili prenesite video datoteku — video/*, najviše 50 MB.",
+      "empty": "Video još nije postavljen",
+      "invalidUrl": "Unesite ispravan http(s) URL videa.",
+      "openExternal": "Otvori u novom tabu",
+      "embedNote": "Ako se video ne učita, izvor ne dopušta ugrađivanje — otvorite ga u novom tabu.",
+      "uploadedFile": "Prenesena datoteka",
+      "errorPrefix": "Greška s videom",
+      "err": {
+        "too_large": "Datoteka je veća od 50 MB.",
+        "bad_type": "Dopuštene su samo video datoteke (video/*).",
+        "bad_request": "Datoteka nije primljena.",
+        "server_error": "Prijenos nije uspio — pokušajte ponovno."
+      }
     }
   },
   "language": {
