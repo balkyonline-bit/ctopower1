@@ -154,14 +154,22 @@ const saveAgentVideo = createServerFn({ method: "POST" }).handler(async (ctx) =>
 
   const trimmed = (url ?? "").trim();
   if (trimmed) {
-    let parsed: URL;
-    try {
-      parsed = new URL(trimmed);
-    } catch {
-      throw new Error("invalid_url");
-    }
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      throw new Error("invalid_url");
+    // Our own upload endpoint (/api/upload) answers with a RELATIVE url of the
+    // shape "/api/media/<name>". src/lib/dev-roles.ts videoTarget() already
+    // plays those, so they are valid stored values. Everything else must still
+    // be a parseable absolute http(s) url.
+    const isOwnUpload =
+      trimmed.startsWith("/api/media/") && !trimmed.includes("..");
+    if (!isOwnUpload) {
+      let parsed: URL;
+      try {
+        parsed = new URL(trimmed);
+      } catch {
+        throw new Error("invalid_url");
+      }
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        throw new Error("invalid_url");
+      }
     }
   }
 
