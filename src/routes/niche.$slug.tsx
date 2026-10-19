@@ -5,7 +5,12 @@ import { useTranslation } from "react-i18next";
 
 // ── Server functions ──
 
-const fetchArticleCount = createServerFn().handler(async (slug: string) => {
+// Server-fn handlers receive the server-fn context ({ data, context }), never
+// positional args. Declaring `slug: string` positionally meant the SQL below
+// received the context object instead of the slug, so lookups always came back
+// empty (article count 0).
+const fetchArticleCount = createServerFn({ method: "POST" }).handler(async (ctx) => {
+  const slug = ctx.data as string;
   const sql = getSql();
   const rows = await sql`
     SELECT count(*) as cnt
@@ -26,7 +31,7 @@ export const Route = createFileRoute("/niche/$slug")({
 
     if (dbConnected) {
       try {
-        articleCount = await fetchArticleCount(slug);
+        articleCount = await fetchArticleCount({ data: slug });
       } catch {
         // DB might not have articles table yet
       }
