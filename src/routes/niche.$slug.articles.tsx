@@ -5,7 +5,8 @@ import { useTranslation } from "react-i18next";
 
 // ── Server functions ──
 
-const fetchNicheProfile = createServerFn().handler(async (slug: string) => {
+const fetchNicheProfile = createServerFn({ method: "POST" }).handler(async (ctx) => {
+  const slug = ctx.data as string;
   const sql = getSql();
   const rows = await sql`
     SELECT * FROM niche_profiles WHERE slug = ${slug} LIMIT 1
@@ -25,7 +26,8 @@ const fetchNicheProfile = createServerFn().handler(async (slug: string) => {
   };
 });
 
-const fetchArticles = createServerFn().handler(async (nicheId: string) => {
+const fetchArticles = createServerFn({ method: "POST" }).handler(async (ctx) => {
+  const nicheId = ctx.data as string;
   const sql = getSql();
   const rows = await sql`
     SELECT id, title, slug, excerpt, word_count, status, seo_keywords, published_at, created_at
@@ -51,11 +53,11 @@ const fetchArticles = createServerFn().handler(async (nicheId: string) => {
 export const Route = createFileRoute("/niche/$slug/articles")({
   loader: async ({ params }) => {
     const slug = params.slug;
-    const profile = await fetchNicheProfile(slug);
+    const profile = await fetchNicheProfile({ data: slug });
     let articles: Awaited<ReturnType<typeof fetchArticles>> = [];
 
     if (profile) {
-      articles = await fetchArticles(profile.id);
+      articles = await fetchArticles({ data: profile.id });
     }
 
     return { slug, profile, articles };

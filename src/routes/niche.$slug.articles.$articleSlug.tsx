@@ -5,8 +5,9 @@ import { useTranslation } from "react-i18next";
 
 // ── Server functions ──
 
-const fetchArticle = createServerFn().handler(
-  async (params: { nicheSlug: string; articleSlug: string }) => {
+const fetchArticle = createServerFn({ method: "POST" }).handler(
+  async (ctx) => {
+    const params = ctx.data as { nicheSlug: string; articleSlug: string };
     const sql = getSql();
 
     const nicheRows = await sql`
@@ -52,8 +53,10 @@ const fetchArticle = createServerFn().handler(
 export const Route = createFileRoute("/niche/$slug/articles/$articleSlug")({
   loader: async ({ params }) => {
     const article = await fetchArticle({
-      nicheSlug: params.slug,
-      articleSlug: params.articleSlug,
+      data: {
+        nicheSlug: params.slug,
+        articleSlug: params.articleSlug,
+      },
     });
     if (!article) throw notFound();
     return article;
